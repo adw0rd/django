@@ -3,7 +3,7 @@ from django.db.utils import DatabaseError
 try:
     import thread
 except ImportError:
-    import dummy_thread as thread
+    from django.utils.six.moves import _dummy_thread as thread
 from contextlib import contextmanager
 
 from django.conf import settings
@@ -12,6 +12,7 @@ from django.db.backends import util
 from django.db.transaction import TransactionManagementError
 from django.utils.functional import cached_property
 from django.utils.importlib import import_module
+from django.utils import six
 from django.utils.timezone import is_aware
 
 
@@ -747,10 +748,23 @@ class BaseDatabaseOperations(object):
         the given database tables (without actually removing the tables
         themselves).
 
+        The returned value also includes SQL statements required to reset DB
+        sequences passed in :param sequences:.
+
         The `style` argument is a Style object as returned by either
         color_style() or no_style() in django.core.management.color.
         """
         raise NotImplementedError()
+
+    def sequence_reset_by_name_sql(self, style, sequences):
+        """
+        Returns a list of the SQL statements required to reset sequences
+        passed in :param sequences:.
+
+        The `style` argument is a Style object as returned by either
+        color_style() or no_style() in django.core.management.color.
+        """
+        return []
 
     def sequence_reset_sql(self, style, model_list):
         """
@@ -808,7 +822,7 @@ class BaseDatabaseOperations(object):
         """
         if value is None:
             return None
-        return unicode(value)
+        return six.text_type(value)
 
     def value_to_db_datetime(self, value):
         """
@@ -817,7 +831,7 @@ class BaseDatabaseOperations(object):
         """
         if value is None:
             return None
-        return unicode(value)
+        return six.text_type(value)
 
     def value_to_db_time(self, value):
         """
@@ -828,7 +842,7 @@ class BaseDatabaseOperations(object):
             return None
         if is_aware(value):
             raise ValueError("Django does not support timezone-aware times.")
-        return unicode(value)
+        return six.text_type(value)
 
     def value_to_db_decimal(self, value, max_digits, decimal_places):
         """

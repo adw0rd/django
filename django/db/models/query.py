@@ -14,6 +14,7 @@ from django.db.models.query_utils import (Q, select_related_descend,
 from django.db.models.deletion import Collector
 from django.db.models import sql
 from django.utils.functional import partition
+from django.utils import six
 
 # Used to control how many objects are worked with at once in some cases (e.g.
 # when deleting objects).
@@ -168,7 +169,7 @@ class QuerySet(object):
         """
         Retrieves an item or slice from the set of results.
         """
-        if not isinstance(k, (slice, int, long)):
+        if not isinstance(k, (slice,) + six.integer_types):
             raise TypeError
         assert ((not isinstance(k, slice) and (k >= 0))
                 or (isinstance(k, slice) and (k.start is None or k.start >= 0)
@@ -470,7 +471,7 @@ class QuerySet(object):
                     return self.get(**lookup), False
                 except self.model.DoesNotExist:
                     # Re-raise the IntegrityError with its original traceback.
-                    raise exc_info[1], None, exc_info[2]
+                    six.reraise(exc_info[1], None, exc_info[2])
 
     def latest(self, field_name=None):
         """

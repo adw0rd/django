@@ -6,7 +6,7 @@ class SQLCompiler(compiler.SQLCompiler):
 
     def resolve_columns(self, row, fields=()):
         values = []
-        index_extra_select = len(self.query.extra_select.keys())
+        index_extra_select = len(self.query.extra_select)
         for value, field in map(None, row[index_extra_select:], fields):
             if (field and field.get_internal_type() in ("BooleanField", "NullBooleanField") and
                 value in (0, 1)):

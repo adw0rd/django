@@ -8,7 +8,7 @@ except ImportError:     # Python 2
 
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-from django.utils.encoding import smart_unicode
+from django.utils.encoding import smart_text
 from django.utils.ipv6 import is_valid_ipv6_address
 from django.utils import six
 
@@ -36,7 +36,7 @@ class RegexValidator(object):
         """
         Validates that the input matches the regular expression.
         """
-        if not self.regex.search(smart_unicode(value)):
+        if not self.regex.search(smart_text(value)):
             raise ValidationError(self.message, code=self.code)
 
 class URLValidator(RegexValidator):
@@ -54,10 +54,10 @@ class URLValidator(RegexValidator):
         except ValidationError as e:
             # Trivial case failed. Try for possible IDN domain
             if value:
-                value = smart_unicode(value)
+                value = smart_text(value)
                 scheme, netloc, path, query, fragment = urlsplit(value)
                 try:
-                    netloc = netloc.encode('idna') # IDN -> ACE
+                    netloc = netloc.encode('idna').decode('ascii') # IDN -> ACE
                 except UnicodeError: # invalid domain part
                     raise e
                 url = urlunsplit((scheme, netloc, path, query, fragment))
@@ -84,7 +84,7 @@ class EmailValidator(RegexValidator):
             if value and '@' in value:
                 parts = value.split('@')
                 try:
-                    parts[-1] = parts[-1].encode('idna')
+                    parts[-1] = parts[-1].encode('idna').decode('ascii')
                 except UnicodeError:
                     raise e
                 super(EmailValidator, self).__call__('@'.join(parts))
@@ -138,7 +138,7 @@ def ip_address_validators(protocol, unpack_ipv4):
         return ip_address_validator_map[protocol.lower()]
     except KeyError:
         raise ValueError("The protocol '%s' is unknown. Supported: %s"
-                         % (protocol, ip_address_validator_map.keys()))
+                         % (protocol, list(ip_address_validator_map)))
 
 comma_separated_int_list_re = re.compile('^[\d,]+$')
 validate_comma_separated_integer_list = RegexValidator(comma_separated_int_list_re, _('Enter only digits separated by commas.'), 'invalid')

@@ -5,9 +5,10 @@ Comparing two html documents.
 from __future__ import unicode_literals
 
 import re
-from django.utils.encoding import force_unicode
+from django.utils.encoding import force_text
 from django.utils.html_parser import HTMLParser, HTMLParseError
 from django.utils import six
+from django.utils.encoding import python_2_unicode_compatible
 
 
 WHITESPACE = re.compile('\s+')
@@ -17,6 +18,7 @@ def normalize_whitespace(string):
     return WHITESPACE.sub(' ', string)
 
 
+@python_2_unicode_compatible
 class Element(object):
     def __init__(self, name, attributes):
         self.name = name
@@ -25,7 +27,7 @@ class Element(object):
 
     def append(self, element):
         if isinstance(element, six.string_types):
-            element = force_unicode(element)
+            element = force_text(element)
             element = normalize_whitespace(element)
             if self.children:
                 if isinstance(self.children[-1], six.string_types):
@@ -83,6 +85,8 @@ class Element(object):
             return False
         return True
 
+    __hash__ = object.__hash__
+
     def __ne__(self, element):
         return not self.__eq__(element)
 
@@ -115,7 +119,7 @@ class Element(object):
     def __getitem__(self, key):
         return self.children[key]
 
-    def __unicode__(self):
+    def __str__(self):
         output = '<%s' % self.name
         for key, value in self.attributes:
             if value:
@@ -134,11 +138,12 @@ class Element(object):
         return six.text_type(self)
 
 
+@python_2_unicode_compatible
 class RootElement(Element):
     def __init__(self):
         super(RootElement, self).__init__(None, ())
 
-    def __unicode__(self):
+    def __str__(self):
         return ''.join(six.text_type(c) for c in self.children)
 
 

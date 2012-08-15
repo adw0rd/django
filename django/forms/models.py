@@ -13,11 +13,12 @@ from django.forms.formsets import BaseFormSet, formset_factory
 from django.forms.util import ErrorList
 from django.forms.widgets import (SelectMultiple, HiddenInput,
     MultipleHiddenInput, media_property)
-from django.utils.encoding import smart_unicode, force_unicode
+from django.utils.encoding import smart_text, force_text
 from django.utils.datastructures import SortedDict
 from django.utils import six
 from django.utils.text import get_text_list, capfirst
 from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils import six
 
 
 __all__ = (
@@ -206,7 +207,7 @@ class ModelFormMetaclass(type):
             fields = fields_for_model(opts.model, opts.fields,
                                       opts.exclude, opts.widgets, formfield_callback)
             # make sure opts.fields doesn't specify an invalid field
-            none_model_fields = [k for k, v in fields.iteritems() if not v]
+            none_model_fields = [k for k, v in six.iteritems(fields) if not v]
             missing_fields = set(none_model_fields) - \
                              set(declared_fields.keys())
             if missing_fields:
@@ -400,13 +401,8 @@ def modelform_factory(model, form=ModelForm, fields=None, exclude=None,
         'formfield_callback': formfield_callback
     }
 
-    form_metaclass = ModelFormMetaclass
-
-    # TODO: this doesn't work under Python 3.
-    if issubclass(form, BaseModelForm) and hasattr(form, '__metaclass__'):
-        form_metaclass = form.__metaclass__
-
-    return form_metaclass(class_name, (form,), form_class_attrs)
+    # Instatiate type(form) in order to use the same metaclass as form.
+    return type(form)(class_name, (form,), form_class_attrs)
 
 
 # ModelFormSets ##############################################################
@@ -874,7 +870,7 @@ class InlineForeignKeyField(Field):
             orig = getattr(self.parent_instance, self.to_field)
         else:
             orig = self.parent_instance.pk
-        if force_unicode(value) != force_unicode(orig):
+        if force_text(value) != force_text(orig):
             raise ValidationError(self.error_messages['invalid_choice'])
         return self.parent_instance
 
@@ -952,7 +948,7 @@ class ModelChoiceField(ChoiceField):
         generate the labels for the choices presented by this object. Subclasses
         can override this method to customize the display of the choices.
         """
-        return smart_unicode(obj)
+        return smart_text(obj)
 
     def _get_choices(self):
         # If self._choices is set, then somebody must have manually set
@@ -1024,9 +1020,9 @@ class ModelMultipleChoiceField(ModelChoiceField):
             except ValueError:
                 raise ValidationError(self.error_messages['invalid_pk_value'] % pk)
         qs = self.queryset.filter(**{'%s__in' % key: value})
-        pks = set([force_unicode(getattr(o, key)) for o in qs])
+        pks = set([force_text(getattr(o, key)) for o in qs])
         for val in value:
-            if force_unicode(val) not in pks:
+            if force_text(val) not in pks:
                 raise ValidationError(self.error_messages['invalid_choice'] % val)
         # Since this overrides the inherited ModelChoiceField.clean
         # we run custom validators here
@@ -1034,6 +1030,6 @@ class ModelMultipleChoiceField(ModelChoiceField):
         return qs
 
     def prepare_value(self, value):
-        if hasattr(value, '__iter__'):
+        if hasattr(value, '__iter__') and not isinstance(value, six.text_type):
             return [super(ModelMultipleChoiceField, self).prepare_value(v) for v in value]
         return super(ModelMultipleChoiceField, self).prepare_value(value)

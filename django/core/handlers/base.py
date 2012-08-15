@@ -4,7 +4,7 @@ import sys
 
 from django import http
 from django.core import signals
-from django.utils.encoding import force_unicode
+from django.utils.encoding import force_text
 from django.utils.importlib import import_module
 from django.utils.log import getLogger
 from django.utils import six
@@ -152,10 +152,8 @@ class BaseHandler(object):
                         callback, param_dict = resolver.resolve404()
                         response = callback(request, **param_dict)
                     except:
-                        try:
-                            response = self.handle_uncaught_exception(request, resolver, sys.exc_info())
-                        finally:
-                            signals.got_request_exception.send(sender=self.__class__, request=request)
+                        signals.got_request_exception.send(sender=self.__class__, request=request)
+                        response = self.handle_uncaught_exception(request, resolver, sys.exc_info())
             except exceptions.PermissionDenied:
                 logger.warning(
                     'Forbidden (Permission denied): %s', request.path,
@@ -167,12 +165,10 @@ class BaseHandler(object):
                     callback, param_dict = resolver.resolve403()
                     response = callback(request, **param_dict)
                 except:
-                    try:
-                        response = self.handle_uncaught_exception(request,
-                            resolver, sys.exc_info())
-                    finally:
-                        signals.got_request_exception.send(
+                    signals.got_request_exception.send(
                             sender=self.__class__, request=request)
+                    response = self.handle_uncaught_exception(request,
+                            resolver, sys.exc_info())
             except SystemExit:
                 # Allow sys.exit() to actually exit. See tickets #1023 and #4701
                 raise
@@ -225,7 +221,7 @@ class BaseHandler(object):
 
         # If Http500 handler is not installed, re-raise last exception
         if resolver.urlconf_module is None:
-            six.reraise(exc_info[1], None, exc_info[2])
+            six.reraise(*exc_info)
         # Return an HttpResponse that displays a friendly error message.
         callback, param_dict = resolver.resolve500()
         return callback(request, **param_dict)
@@ -250,7 +246,7 @@ def get_script_name(environ):
     """
     from django.conf import settings
     if settings.FORCE_SCRIPT_NAME is not None:
-        return force_unicode(settings.FORCE_SCRIPT_NAME)
+        return force_text(settings.FORCE_SCRIPT_NAME)
 
     # If Apache's mod_rewrite had a whack at the URL, Apache set either
     # SCRIPT_URL or REDIRECT_URL to the full resource URL before applying any
@@ -261,5 +257,5 @@ def get_script_name(environ):
     if not script_url:
         script_url = environ.get('REDIRECT_URL', '')
     if script_url:
-        return force_unicode(script_url[:-len(environ.get('PATH_INFO', ''))])
-    return force_unicode(environ.get('SCRIPT_NAME', ''))
+        return force_text(script_url[:-len(environ.get('PATH_INFO', ''))])
+    return force_text(environ.get('SCRIPT_NAME', ''))

@@ -23,9 +23,33 @@ from django.db.models import signals
 from django.db.models.loading import register_models, get_model
 from django.utils.translation import ugettext_lazy as _
 from django.utils.functional import curry
-from django.utils.encoding import smart_str, force_unicode
+from django.utils.encoding import smart_str, force_text
 from django.utils import six
 from django.utils.text import get_text_list, capfirst
+
+
+def subclass_exception(name, parents, module, attached_to=None):
+    """
+    Create exception subclass. Used by ModelBase below.
+
+    If 'attached_to' is supplied, the exception will be created in a way that
+    allows it to be pickled, assuming the returned exception class will be added
+    as an attribute to the 'attached_to' class.
+    """
+    class_dict = {'__module__': module}
+    if attached_to is not None:
+        def __reduce__(self):
+            # Exceptions are special - they've got state that isn't
+            # in self.__dict__. We assume it is all in self.args.
+            return (unpickle_inner_exception, (attached_to, name), self.args)
+
+        def __setstate__(self, args):
+            self.args = args
+
+        class_dict['__reduce__'] = __reduce__
+        class_dict['__setstate__'] = __setstate__
+
+    return type(name, parents, class_dict)
 
 
 class ModelBase(type):
@@ -364,14 +388,14 @@ class Model(six.with_metaclass(ModelBase, object)):
                 setattr(self, field.attname, val)
 
         if kwargs:
-            for prop in kwargs.keys():
+            for prop in list(kwargs):
                 try:
                     if isinstance(getattr(self.__class__, prop), property):
                         setattr(self, prop, kwargs.pop(prop))
                 except AttributeError:
                     pass
             if kwargs:
-                raise TypeError("'%s' is an invalid keyword argument for this function" % kwargs.keys()[0])
+                raise TypeError("'%s' is an invalid keyword argument for this function" % list(kwargs)[0])
         super(Model, self).__init__()
         signals.post_init.send(sender=self.__class__, instance=self)
 
@@ -383,8 +407,8 @@ class Model(six.with_metaclass(ModelBase, object)):
         return smart_str('<%s: %s>' % (self.__class__.__name__, u))
 
     def __str__(self):
-        if hasattr(self, '__unicode__'):
-            return force_unicode(self).encode('utf-8')
+        if not six.PY3 and hasattr(self, '__unicode__'):
+            return force_text(self).encode('utf-8')
         return '%s object' % self.__class__.__name__
 
     def __eq__(self, other):
@@ -451,6 +475,7 @@ class Model(six.with_metaclass(ModelBase, object)):
         that the "save" must be an SQL insert or update (or equivalent for
         non-SQL backends), respectively. Normally, they should not be set.
         """
+        using = using or router.db_for_write(self.__class__, instance=self)
         if force_insert and (force_update or update_fields):
             raise ValueError("Cannot force both insert and updating in model saving.")
 
@@ -477,6 +502,23 @@ class Model(six.with_metaclass(ModelBase, object)):
                 raise ValueError("The following fields do not exist in this "
                                  "model or are m2m fields: %s"
                                  % ', '.join(non_model_fields))
+
+        # If saving to the same database, and this model is deferred, then
+        # automatically do a "update_fields" save on the loaded fields.
+        elif not force_insert and self._deferred and using == self._state.db:
+            field_names = set()
+            for field in self._meta.fields:
+                if not field.primary_key and not hasattr(field, 'through'):
+                    field_names.add(field.attname)
+            deferred_fields = [
+                f.attname for f in self._meta.fields
+                if f.attname not in self.__dict__
+                   and isinstance(self.__class__.__dict__[f.attname],
+                                  DeferredAttribute)]
+
+            loaded_fields = field_names.difference(deferred_fields)
+            if loaded_fields:
+                update_fields = frozenset(loaded_fields)
 
         self.save_base(using=using, force_insert=force_insert,
                        force_update=force_update, update_fields=update_fields)
@@ -605,14 +647,14 @@ class Model(six.with_metaclass(ModelBase, object)):
 
     def _get_FIELD_display(self, field):
         value = getattr(self, field.attname)
-        return force_unicode(dict(field.flatchoices).get(value, value), strings_only=True)
+        return force_text(dict(field.flatchoices).get(value, value), strings_only=True)
 
     def _get_next_or_previous_by_FIELD(self, field, is_next, **kwargs):
         if not self.pk:
             raise ValueError("get_next/get_previous cannot be used on unsaved objects.")
         op = is_next and 'gt' or 'lt'
         order = not is_next and '-' or ''
-        param = smart_str(getattr(self, field.attname))
+        param = force_text(getattr(self, field.attname))
         q = Q(**{'%s__%s' % (field.name, op): param})
         q = q|Q(**{field.name: param, 'pk__%s' % op: self.pk})
         qs = self.__class__._default_manager.using(self._state.db).filter(**kwargs).filter(q).order_by('%s%s' % (order, field.name), '%spk' % order)
@@ -737,7 +779,7 @@ class Model(six.with_metaclass(ModelBase, object)):
                 lookup_kwargs[str(field_name)] = lookup_value
 
             # some fields were skipped, no reason to do the check
-            if len(unique_check) != len(lookup_kwargs.keys()):
+            if len(unique_check) != len(lookup_kwargs):
                 continue
 
             qs = model_class._default_manager.filter(**lookup_kwargs)
@@ -813,7 +855,7 @@ class Model(six.with_metaclass(ModelBase, object)):
             }
         # unique_together
         else:
-            field_labels = map(lambda f: capfirst(opts.get_field(f).verbose_name), unique_check)
+            field_labels = [capfirst(opts.get_field(f).verbose_name) for f in unique_check]
             field_labels = get_text_list(field_labels, _('and'))
             return _("%(model_name)s with this %(field_label)s already exists.") %  {
                 'model_name': six.text_type(model_name),
@@ -928,29 +970,6 @@ def model_unpickle(model, attrs):
     cls = deferred_class_factory(model, attrs)
     return cls.__new__(cls)
 model_unpickle.__safe_for_unpickle__ = True
-
-def subclass_exception(name, parents, module, attached_to=None):
-    """
-    Create exception subclass.
-
-    If 'attached_to' is supplied, the exception will be created in a way that
-    allows it to be pickled, assuming the returned exception class will be added
-    as an attribute to the 'attached_to' class.
-    """
-    class_dict = {'__module__': module}
-    if attached_to is not None:
-        def __reduce__(self):
-            # Exceptions are special - they've got state that isn't
-            # in self.__dict__. We assume it is all in self.args.
-            return (unpickle_inner_exception, (attached_to, name), self.args)
-
-        def __setstate__(self, args):
-            self.args = args
-
-        class_dict['__reduce__'] = __reduce__
-        class_dict['__setstate__'] = __setstate__
-
-    return type(name, parents, class_dict)
 
 def unpickle_inner_exception(klass, exception_name):
     # Get the exception class from the class it is attached to:

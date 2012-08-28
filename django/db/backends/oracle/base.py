@@ -10,8 +10,6 @@ import decimal
 import sys
 import warnings
 
-from django.utils import six
-
 def _setup_environment(environ):
     import platform
     # Cygwin requires some special voodoo to set the environment variables
@@ -221,7 +219,10 @@ WHEN (new.%(col_name)s IS NULL)
     def last_executed_query(self, cursor, sql, params):
         # http://cx-oracle.sourceforge.net/html/cursor.html#Cursor.statement
         # The DB API definition does not define this attribute.
-        return cursor.statement.decode("utf-8")
+        if six.PY3:
+            return cursor.statement
+        else:
+            return cursor.statement.decode("utf-8")
 
     def last_insert_id(self, cursor, table_name, pk_name):
         sq_name = self._get_sequence_name(table_name)
@@ -594,6 +595,12 @@ class OracleParam(object):
                 param = timezone.make_aware(param, default_timezone)
             param = param.astimezone(timezone.utc).replace(tzinfo=None)
 
+        # Oracle doesn't recognize True and False correctly in Python 3.
+        # The conversion done below works both in 2 and 3.
+        if param is True:
+            param = "1"
+        elif param is False:
+            param = "0"
         if hasattr(param, 'bind_parameter'):
             self.smart_bytes = param.bind_parameter(cursor)
         else:

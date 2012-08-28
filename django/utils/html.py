@@ -123,6 +123,17 @@ def strip_tags(value):
     return re.sub(r'<[^>]*?>', '', force_text(value))
 strip_tags = allow_lazy(strip_tags)
 
+def remove_tags(html, tags):
+    """Returns the given HTML with given tags removed."""
+    tags = [re.escape(tag) for tag in tags.split()]
+    tags_re = '(%s)' % '|'.join(tags)
+    starttag_re = re.compile(r'<%s(/?>|(\s+[^>]*>))' % tags_re, re.U)
+    endtag_re = re.compile('</%s>' % tags_re)
+    html = starttag_re.sub('', html)
+    html = endtag_re.sub('', html)
+    return html
+remove_tags = allow_lazy(remove_tags, six.text_type)
+
 def strip_spaces_between_tags(value):
     """Returns the given HTML with spaces between tags removed."""
     return re.sub(r'>\s+<', '><', force_text(value))

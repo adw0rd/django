@@ -1,7 +1,7 @@
 from django.db.utils import DatabaseError
 
 try:
-    import thread
+    from django.utils.six.moves import _thread as thread
 except ImportError:
     from django.utils.six.moves import _dummy_thread as thread
 from contextlib import contextmanager
@@ -46,6 +46,8 @@ class BaseDatabaseWrapper(object):
 
     def __ne__(self, other):
         return not self == other
+
+    __hash__ = object.__hash__
 
     def _commit(self):
         if self.connection is not None:
@@ -991,7 +993,7 @@ class BaseDatabaseIntrospection(object):
             for model in models.get_models(app):
                 if router.allow_syncdb(self.connection.alias, model):
                     all_models.append(model)
-        tables = map(self.table_name_converter, tables)
+        tables = list(map(self.table_name_converter, tables))
         return set([
             m for m in all_models
             if self.table_name_converter(m._meta.db_table) in tables

@@ -7,7 +7,6 @@ a list of all possible variables.
 """
 
 import os
-import re
 import time     # Needed for Windows
 import warnings
 
@@ -26,7 +25,7 @@ class LazySettings(LazyObject):
     The user can manually configure settings prior to using them. Otherwise,
     Django uses the settings module pointed to by DJANGO_SETTINGS_MODULE.
     """
-    def _setup(self):
+    def _setup(self, name):
         """
         Load the settings module pointed to by the environment variable. This
         is used the first time we need any settings at all, if the user has not
@@ -37,11 +36,35 @@ class LazySettings(LazyObject):
             if not settings_module: # If it's set but is an empty string.
                 raise KeyError
         except KeyError:
-            # NOTE: This is arguably an EnvironmentError, but that causes
-            # problems with Python's interactive help.
-            raise ImportError("Settings cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLE)
+            raise ImproperlyConfigured(
+                "Requested setting %s, but settings are not configured. "
+                "You must either define the environment variable %s "
+                "or call settings.configure() before accessing settings."
+                % (name, ENVIRONMENT_VARIABLE))
 
         self._wrapped = Settings(settings_module)
+        self._configure_logging()
+
+    def __getattr__(self, name):
+        if self._wrapped is empty:
+            self._setup(name)
+        return getattr(self._wrapped, name)
+
+    def _configure_logging(self):
+        """
+        Setup logging from LOGGING_CONFIG and LOGGING settings.
+        """
+        if self.LOGGING_CONFIG:
+            # First find the logging configuration function ...
+            logging_config_path, logging_config_func_name = self.LOGGING_CONFIG.rsplit('.', 1)
+            logging_config_module = importlib.import_module(logging_config_path)
+            logging_config_func = getattr(logging_config_module, logging_config_func_name)
+
+            # Backwards-compatibility shim for #16288 fix
+            compat_patch_logging_config(self.LOGGING)
+
+            # ... then invoke it with the logging settings
+            logging_config_func(self.LOGGING)
 
     def configure(self, default_settings=global_settings, **options):
         """
@@ -125,19 +148,6 @@ class Settings(BaseSettings):
             os.environ['TZ'] = self.TIME_ZONE
             time.tzset()
 
-        # Settings are configured, so we can set up the logger if required
-        if self.LOGGING_CONFIG:
-            # First find the logging configuration function ...
-            logging_config_path, logging_config_func_name = self.LOGGING_CONFIG.rsplit('.', 1)
-            logging_config_module = importlib.import_module(logging_config_path)
-            logging_config_func = getattr(logging_config_module, logging_config_func_name)
-
-            # Backwards-compatibility shim for #16288 fix
-            compat_patch_logging_config(self.LOGGING)
-
-            # ... then invoke it with the logging settings
-            logging_config_func(self.LOGGING)
-
 
 class UserSettingsHolder(BaseSettings):
     """
@@ -152,10 +162,21 @@ class UserSettingsHolder(BaseSettings):
         Requests for configuration variables not in this class are satisfied
         from the module specified in default_settings (if possible).
         """
+        self.__dict__['_deleted'] = set()
         self.default_settings = default_settings
 
     def __getattr__(self, name):
+        if name in self._deleted:
+            raise AttributeError
         return getattr(self.default_settings, name)
+
+    def __setattr__(self, name, value):
+        self._deleted.discard(name)
+        return super(UserSettingsHolder, self).__setattr__(name, value)
+
+    def __delattr__(self, name):
+        self._deleted.add(name)
+        return super(UserSettingsHolder, self).__delattr__(name)
 
     def __dir__(self):
         return list(self.__dict__) + dir(self.default_settings)

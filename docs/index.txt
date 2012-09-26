@@ -5,7 +5,7 @@
 Django documentation
 ====================
 
-.. rubric:: Everything you need to know about Django (and then some).
+.. rubric:: Everything you need to know about Django.
 
 Getting help
 ============
@@ -108,7 +108,8 @@ to know about views via the links below:
   :doc:`Built-in display views <topics/class-based-views/generic-display>` |
   :doc:`Built-in editing views <topics/class-based-views/generic-editing>` |
   :doc:`Using mixins <topics/class-based-views/mixins>` |
-  :doc:`API reference <ref/class-based-views/index>`
+  :doc:`API reference <ref/class-based-views/index>` |
+  :doc:`Flattened index<ref/class-based-views/flattened-index>`
 
 * **Advanced:**
   :doc:`Generating CSV <howto/outputting-csv>` |
@@ -240,7 +241,7 @@ applications:
 * :doc:`Authentication <topics/auth>`
 * :doc:`Caching <topics/cache>`
 * :doc:`Logging <topics/logging>`
-* :doc:`Sending e-mails <topics/email>`
+* :doc:`Sending emails <topics/email>`
 * :doc:`Syndication feeds (RSS/Atom) <ref/contrib/syndication>`
 * :doc:`Comments <ref/contrib/comments/index>`, :doc:`comment moderation <ref/contrib/comments/moderation>` and :doc:`custom comments <ref/contrib/comments/custom>`
 * :doc:`Pagination <topics/pagination>`

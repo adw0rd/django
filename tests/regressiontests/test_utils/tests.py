@@ -137,15 +137,15 @@ class AssertTemplateUsedContextManagerTests(TestCase):
             pass
 
     def test_error_message(self):
-        with self.assertRaisesRegexp(AssertionError, r'^template_used/base\.html'):
+        with six.assertRaisesRegex(self, AssertionError, r'^template_used/base\.html'):
             with self.assertTemplateUsed('template_used/base.html'):
                 pass
 
-        with self.assertRaisesRegexp(AssertionError, r'^template_used/base\.html'):
+        with six.assertRaisesRegex(self, AssertionError, r'^template_used/base\.html'):
             with self.assertTemplateUsed(template_name='template_used/base.html'):
                 pass
 
-        with self.assertRaisesRegexp(AssertionError, r'^template_used/base\.html.*template_used/alternative\.html$'):
+        with six.assertRaisesRegex(self, AssertionError, r'^template_used/base\.html.*template_used/alternative\.html$'):
             with self.assertTemplateUsed('template_used/base.html'):
                 render_to_string('template_used/alternative.html')
 
@@ -476,7 +476,7 @@ class AssertRaisesMsgTest(SimpleTestCase):
 class AssertFieldOutputTests(SimpleTestCase):
 
     def test_assert_field_output(self):
-        error_invalid = ['Enter a valid e-mail address.']
+        error_invalid = ['Enter a valid email address.']
         self.assertFieldOutput(EmailField, {'a@a.com': 'a@a.com'}, {'aaa': error_invalid})
         self.assertRaises(AssertionError, self.assertFieldOutput, EmailField, {'a@a.com': 'a@a.com'}, {'aaa': error_invalid + ['Another error']})
         self.assertRaises(AssertionError, self.assertFieldOutput, EmailField, {'a@a.com': 'Wrong output'}, {'aaa': error_invalid})

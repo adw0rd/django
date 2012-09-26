@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import shutil
 import string
 import tempfile
@@ -12,6 +12,7 @@ from django.contrib.sessions.backends.file import SessionStore as FileSession
 from django.contrib.sessions.backends.signed_cookies import SessionStore as CookieSession
 from django.contrib.sessions.models import Session
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.core.cache import DEFAULT_CACHE_ALIAS
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
 from django.test import TestCase, RequestFactory
@@ -133,6 +134,9 @@ class SessionTestsMixin(object):
         self.assertTrue(self.session.modified)
 
     def test_save(self):
+        if (hasattr(self.session, '_cache') and
+                'DummyCache' in settings.CACHES[DEFAULT_CACHE_ALIAS]['BACKEND']):
+            raise unittest.SkipTest("Session saving tests require a real cache backend")
         self.session.save()
         self.assertTrue(self.session.exists(self.session.session_key))
 
@@ -296,17 +300,19 @@ class CacheDBSessionTests(SessionTestsMixin, TestCase):
 
     backend = CacheDBSession
 
+    @unittest.skipIf('DummyCache' in settings.CACHES[DEFAULT_CACHE_ALIAS]['BACKEND'],
+        "Session saving tests require a real cache backend")
     def test_exists_searches_cache_first(self):
         self.session.save()
         with self.assertNumQueries(0):
             self.assertTrue(self.session.exists(self.session.session_key))
 
     def test_load_overlong_key(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        # Some backends might issue a warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             self.session._session_key = (string.ascii_letters + string.digits) * 20
             self.assertEqual(self.session.load(), {})
-            self.assertEqual(len(w), 1)
 
 
 @override_settings(USE_TZ=True)
@@ -352,11 +358,11 @@ class CacheSessionTests(SessionTestsMixin, unittest.TestCase):
     backend = CacheSession
 
     def test_load_overlong_key(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        # Some backends might issue a warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             self.session._session_key = (string.ascii_letters + string.digits) * 20
             self.assertEqual(self.session.load(), {})
-            self.assertEqual(len(w), 1)
 
 
 class SessionMiddlewareTests(unittest.TestCase):

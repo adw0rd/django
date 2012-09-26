@@ -1,3 +1,4 @@
+import json
 from binascii import b2a_hex
 try:
     from django.utils.six.moves import cPickle as pickle
@@ -91,7 +92,7 @@ class OGRGeomTest(unittest.TestCase, TestDataMixin):
         "Testing HEX input/output."
         for g in self.geometries.hex_wkt:
             geom1 = OGRGeometry(g.wkt)
-            self.assertEqual(g.hex, geom1.hex)
+            self.assertEqual(g.hex.encode(), geom1.hex)
             # Constructing w/HEX
             geom2 = OGRGeometry(g.hex)
             self.assertEqual(geom1, geom2)
@@ -101,7 +102,7 @@ class OGRGeomTest(unittest.TestCase, TestDataMixin):
         for g in self.geometries.hex_wkt:
             geom1 = OGRGeometry(g.wkt)
             wkb = geom1.wkb
-            self.assertEqual(b2a_hex(wkb).upper(), g.hex)
+            self.assertEqual(b2a_hex(wkb).upper(), g.hex.encode())
             # Constructing w/WKB.
             geom2 = OGRGeometry(wkb)
             self.assertEqual(geom1, geom2)
@@ -111,8 +112,9 @@ class OGRGeomTest(unittest.TestCase, TestDataMixin):
         for g in self.geometries.json_geoms:
             geom = OGRGeometry(g.wkt)
             if not hasattr(g, 'not_equal'):
-                self.assertEqual(g.json, geom.json)
-                self.assertEqual(g.json, geom.geojson)
+                # Loading jsons to prevent decimal differences
+                self.assertEqual(json.loads(g.json), json.loads(geom.json))
+                self.assertEqual(json.loads(g.json), json.loads(geom.geojson))
             self.assertEqual(OGRGeometry(g.wkt), OGRGeometry(geom.json))
 
     def test02_points(self):

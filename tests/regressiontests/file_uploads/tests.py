@@ -12,7 +12,7 @@ from django.core.files import temp as tempfile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http.multipartparser import MultiPartParser
 from django.test import TestCase, client
-from django.utils.encoding import smart_bytes
+from django.utils.encoding import force_bytes
 from django.utils.six import StringIO
 from django.utils import unittest
 
@@ -54,7 +54,7 @@ class FileUploadTests(TestCase):
                 post_data[key + '_hash'] = hashlib.sha1(post_data[key].read()).hexdigest()
                 post_data[key].seek(0)
             except AttributeError:
-                post_data[key + '_hash'] = hashlib.sha1(smart_bytes(post_data[key])).hexdigest()
+                post_data[key + '_hash'] = hashlib.sha1(force_bytes(post_data[key])).hexdigest()
 
         response = self.client.post('/file_uploads/verify/', post_data)
 
@@ -68,7 +68,7 @@ class FileUploadTests(TestCase):
             'Content-Type: application/octet-stream',
             'Content-Transfer-Encoding: base64',
             '',
-            base64.b64encode(smart_bytes(test_string)).decode('ascii'),
+            base64.b64encode(force_bytes(test_string)).decode('ascii'),
             '--' + client.BOUNDARY + '--',
             '',
         ]).encode('utf-8')
@@ -100,7 +100,7 @@ class FileUploadTests(TestCase):
 
         try:
             os.unlink(file1.name)
-        except:
+        except OSError:
             pass
 
         self.assertEqual(response.status_code, 200)
@@ -384,15 +384,13 @@ class DirectoryCreationTests(unittest.TestCase):
         """The correct IOError is raised when the upload directory name exists but isn't a directory"""
         # Create a file with the upload directory name
         open(UPLOAD_TO, 'wb').close()
-        try:
+        with self.assertRaises(IOError) as exc_info:
             self.obj.testfile.save('foo.txt', SimpleUploadedFile('foo.txt', b'x'))
-        except IOError as err:
-            # The test needs to be done on a specific string as IOError
-            # is raised even without the patch (just not early enough)
-            self.assertEqual(err.args[0],
-                              "%s exists and is not a directory." % UPLOAD_TO)
-        except:
-            self.fail("IOError not raised")
+        # The test needs to be done on a specific string as IOError
+        # is raised even without the patch (just not early enough)
+        self.assertEqual(exc_info.exception.args[0],
+                          "%s exists and is not a directory." % UPLOAD_TO)
+
 
 class MultiParserTests(unittest.TestCase):
 

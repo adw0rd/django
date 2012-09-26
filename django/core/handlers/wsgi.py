@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import logging
 import sys
 from io import BytesIO
 from threading import Lock
@@ -9,10 +10,9 @@ from django.core import signals
 from django.core.handlers import base
 from django.core.urlresolvers import set_script_prefix
 from django.utils import datastructures
-from django.utils.encoding import force_text, smart_str, iri_to_uri
-from django.utils.log import getLogger
+from django.utils.encoding import force_str, force_text, iri_to_uri
 
-logger = getLogger('django.request')
+logger = logging.getLogger('django.request')
 
 
 # See http://www.iana.org/assignments/http-status-codes
@@ -223,18 +223,17 @@ class WSGIHandler(base.BaseHandler):
         set_script_prefix(base.get_script_name(environ))
         signals.request_started.send(sender=self.__class__)
         try:
-            try:
-                request = self.request_class(environ)
-            except UnicodeDecodeError:
-                logger.warning('Bad Request (UnicodeDecodeError)',
-                    exc_info=sys.exc_info(),
-                    extra={
-                        'status_code': 400,
-                    }
-                )
-                response = http.HttpResponseBadRequest()
-            else:
-                response = self.get_response(request)
+            request = self.request_class(environ)
+        except UnicodeDecodeError:
+            logger.warning('Bad Request (UnicodeDecodeError)',
+                exc_info=sys.exc_info(),
+                extra={
+                    'status_code': 400,
+                }
+            )
+            response = http.HttpResponseBadRequest()
+        else:
+            response = self.get_response(request)
         finally:
             signals.request_finished.send(sender=self.__class__)
 
@@ -246,5 +245,5 @@ class WSGIHandler(base.BaseHandler):
         response_headers = [(str(k), str(v)) for k, v in response.items()]
         for c in response.cookies.values():
             response_headers.append((str('Set-Cookie'), str(c.output(header=''))))
-        start_response(smart_str(status), response_headers)
+        start_response(force_str(status), response_headers)
         return response

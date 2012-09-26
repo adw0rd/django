@@ -70,9 +70,8 @@ overridden:
   formfield-specific piece of validation and, possibly,
   cleaning/normalizing the data.
 
-  Just like the general field ``clean()`` method, above, this method
-  should return the cleaned data, regardless of whether it changed
-  anything or not.
+  This method should return the cleaned value obtained from cleaned_data,
+  regardless of whether it changed anything or not.
 
 * The Form subclass's ``clean()`` method. This method can perform
   any validation that requires access to multiple fields from the form at
@@ -186,7 +185,7 @@ a look at Django's ``EmailField``::
 
     class EmailField(CharField):
         default_error_messages = {
-            'invalid': _('Enter a valid e-mail address.'),
+            'invalid': _('Enter a valid email address.'),
         }
         default_validators = [validators.validate_email]
 
@@ -199,7 +198,7 @@ on field definition so::
 is equivalent to::
 
     email = forms.CharField(validators=[validators.validate_email],
-            error_messages={'invalid': _('Enter a valid e-mail address.')})
+            error_messages={'invalid': _('Enter a valid email address.')})
 
 
 Form field default cleaning

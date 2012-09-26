@@ -319,6 +319,7 @@ class BaseDatabaseWrapper(object):
     def make_debug_cursor(self, cursor):
         return util.CursorDebugWrapper(cursor, self)
 
+
 class BaseDatabaseFeatures(object):
     allows_group_by_pk = False
     # True if django.db.backend.utils.typecast_timestamp is used on values
@@ -609,7 +610,7 @@ class BaseDatabaseOperations(object):
         exists for database backends to provide a better implementation
         according to their own quoting schemes.
         """
-        from django.utils.encoding import smart_text, force_text
+        from django.utils.encoding import force_text
 
         # Convert params to contain Unicode values.
         to_unicode = lambda s: force_text(s, strings_only=True, errors='replace')
@@ -618,7 +619,7 @@ class BaseDatabaseOperations(object):
         else:
             u_params = dict([(to_unicode(k), to_unicode(v)) for k, v in params.items()])
 
-        return smart_text(sql) % u_params
+        return force_text(sql) % u_params
 
     def last_insert_id(self, cursor, table_name, pk_name):
         """
@@ -776,7 +777,7 @@ class BaseDatabaseOperations(object):
         The `style` argument is a Style object as returned by either
         color_style() or no_style() in django.core.management.color.
         """
-        return [] # No sequence reset required by default.
+        return []  # No sequence reset required by default.
 
     def start_transaction_sql(self):
         """
@@ -802,8 +803,8 @@ class BaseDatabaseOperations(object):
 
     def prep_for_like_query(self, x):
         """Prepares a value for use in a LIKE query."""
-        from django.utils.encoding import smart_text
-        return smart_text(x).replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
+        from django.utils.encoding import force_text
+        return force_text(x).replace("\\", "\\\\").replace("%", "\%").replace("_", "\_")
 
     # Same as prep_for_like_query(), but called for "iexact" matches, which
     # need not necessarily be implemented using "LIKE" in the backend.
@@ -915,6 +916,7 @@ class BaseDatabaseOperations(object):
         conn = ' %s ' % connector
         return conn.join(sub_expressions)
 
+
 class BaseDatabaseIntrospection(object):
     """
     This class encapsulates all backend-specific introspection utilities
@@ -1010,12 +1012,14 @@ class BaseDatabaseIntrospection(object):
             for model in models.get_models(app):
                 if not model._meta.managed:
                     continue
+                if model._meta.swapped:
+                    continue
                 if not router.allow_syncdb(self.connection.alias, model):
                     continue
                 for f in model._meta.local_fields:
                     if isinstance(f, models.AutoField):
                         sequence_list.append({'table': model._meta.db_table, 'column': f.column})
-                        break # Only one AutoField is allowed per model, so don't bother continuing.
+                        break  # Only one AutoField is allowed per model, so don't bother continuing.
 
                 for f in model._meta.local_many_to_many:
                     # If this is an m2m using an intermediate table,
@@ -1034,9 +1038,12 @@ class BaseDatabaseIntrospection(object):
 
     def get_primary_key_column(self, cursor, table_name):
         """
-        Backends can override this to return the column name of the primary key for the given table.
+        Returns the name of the primary key column for the given table.
         """
-        raise NotImplementedError
+        for column in six.iteritems(self.get_indexes(cursor, table_name)):
+            if column[1]['primary_key']:
+                return column[0]
+        return None
 
     def get_indexes(self, cursor, table_name):
         """
@@ -1048,6 +1055,7 @@ class BaseDatabaseIntrospection(object):
         Only single-column indexes are introspected.
         """
         raise NotImplementedError
+
 
 class BaseDatabaseClient(object):
     """
@@ -1064,6 +1072,7 @@ class BaseDatabaseClient(object):
 
     def runshell(self):
         raise NotImplementedError()
+
 
 class BaseDatabaseValidation(object):
     """

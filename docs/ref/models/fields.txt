@@ -195,6 +195,14 @@ support tablespaces for indexes, this option is ignored.
 The default value for the field. This can be a value or a callable object. If
 callable it will be called every time a new object is created.
 
+The default cannot be a mutable object (model instance, list, set, etc.), as a
+reference to the same instance of that object would be used as the default
+value in all new model instances. Instead, wrap the desired default in a
+callable.  For example, if you had a custom ``JSONField`` and wanted to specify
+a dictionary as the default, use a ``lambda`` as follows::
+
+    contact_info = JSONField("ContactInfo", default=lambda:{"email": "to1@example.com"})
+
 ``editable``
 ------------
 
@@ -983,10 +991,10 @@ define the details of how the relation works.
     this with functions from the Python ``datetime`` module to limit choices of
     objects by date. For example::
 
-        limit_choices_to = {'pub_date__lte': datetime.now}
+        limit_choices_to = {'pub_date__lte': datetime.date.today}
 
     only allows the choice of related objects with a ``pub_date`` before the
-    current date/time to be chosen.
+    current date to be chosen.
 
     Instead of a dictionary this can also be a :class:`~django.db.models.Q`
     object for more :ref:`complex queries <complex-lookups-with-q>`. However,
@@ -1014,8 +1022,6 @@ define the details of how the relation works.
 
     The field on the related object that the relation is to. By default, Django
     uses the primary key of the related object.
-
-.. versionadded:: 1.3
 
 .. attribute:: ForeignKey.on_delete
 
@@ -1072,6 +1078,9 @@ A many-to-many relationship. Requires a positional argument: the class to which
 the model is related. This works exactly the same as it does for
 :class:`ForeignKey`, including all the options regarding :ref:`recursive
 <recursive-relationships>` and :ref:`lazy <lazy-relationships>` relationships.
+
+Related objects can be added, removed, or created with the field's
+:class:`~django.db.models.fields.related.RelatedManager`.
 
 Database Representation
 ~~~~~~~~~~~~~~~~~~~~~~~

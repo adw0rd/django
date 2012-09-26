@@ -4,17 +4,17 @@ Unit tests for reverse URL lookups.
 from __future__ import absolute_import, unicode_literals
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured, ViewDoesNotExist
 from django.core.urlresolvers import (reverse, resolve, get_callable,
-    NoReverseMatch, Resolver404, ResolverMatch, RegexURLResolver,
+    get_resolver, NoReverseMatch, Resolver404, ResolverMatch, RegexURLResolver,
     RegexURLPattern)
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.shortcuts import redirect
 from django.test import TestCase
-from django.utils import unittest
-from django.contrib.auth.models import User
+from django.utils import unittest, six
 
-from . import urlconf_outer, urlconf_inner, middleware, views
+from . import urlconf_outer, middleware, views
 
 
 resolve_test_data = (
@@ -172,6 +172,16 @@ class URLPatternReverse(TestCase):
         self.assertRaises(NoReverseMatch, reverse, None)
 
 class ResolverTests(unittest.TestCase):
+    def test_resolver_repr(self):
+        """
+        Test repr of RegexURLResolver, especially when urlconf_name is a list
+        (#17892).
+        """
+        # Pick a resolver from a namespaced urlconf
+        resolver = get_resolver('regressiontests.urlpatterns_reverse.namespace_urls')
+        sub_resolver = resolver.namespace_dict['test-ns1'][1]
+        self.assertIn('<RegexURLPattern list>', repr(sub_resolver))
+
     def test_non_regex(self):
         """
         Verifies that we raise a Resolver404 if what we are resolving doesn't
@@ -525,7 +535,7 @@ class ViewLoadingTests(TestCase):
     def test_view_loading(self):
         # A missing view (identified by an AttributeError) should raise
         # ViewDoesNotExist, ...
-        self.assertRaisesRegexp(ViewDoesNotExist, ".*View does not exist in.*",
+        six.assertRaisesRegex(self, ViewDoesNotExist, ".*View does not exist in.*",
             get_callable,
             'regressiontests.urlpatterns_reverse.views.i_should_not_exist')
         # ... but if the AttributeError is caused by something else don't

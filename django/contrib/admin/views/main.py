@@ -3,10 +3,11 @@ from functools import reduce
 
 from django.core.exceptions import SuspiciousOperation, ImproperlyConfigured
 from django.core.paginator import InvalidPage
+from django.core.urlresolvers import reverse
 from django.db import models
 from django.db.models.fields import FieldDoesNotExist
 from django.utils.datastructures import SortedDict
-from django.utils.encoding import force_text, smart_bytes
+from django.utils.encoding import force_str, force_text
 from django.utils.translation import ugettext, ugettext_lazy
 from django.utils.http import urlencode
 
@@ -94,7 +95,7 @@ class ChangeList(object):
                 # 'key' will be used as a keyword argument later, so Python
                 # requires it to be a string.
                 del lookup_params[key]
-                lookup_params[smart_bytes(key)] = value
+                lookup_params[force_str(key)] = value
 
             if not self.model_admin.lookup_allowed(key, value):
                 raise SuspiciousOperation("Filtering by %s not allowed" % key)
@@ -376,4 +377,8 @@ class ChangeList(object):
             return qs
 
     def url_for_result(self, result):
-        return "%s/" % quote(getattr(result, self.pk_attname))
+        pk = getattr(result, self.pk_attname)
+        return reverse('admin:%s_%s_change' % (self.opts.app_label,
+                                               self.opts.module_name),
+                       args=(quote(pk),),
+                       current_app=self.model_admin.admin_site.name)

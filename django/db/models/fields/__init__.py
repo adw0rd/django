@@ -905,7 +905,7 @@ class DecimalField(Field):
 
 class EmailField(CharField):
     default_validators = [validators.validate_email]
-    description = _("E-mail address")
+    description = _("Email address")
 
     def __init__(self, *args, **kwargs):
         # max_length should be overridden to 254 characters to be fully
@@ -1047,13 +1047,14 @@ class GenericIPAddressField(Field):
     description = _("IP address")
     default_error_messages = {}
 
-    def __init__(self, protocol='both', unpack_ipv4=False, *args, **kwargs):
+    def __init__(self, verbose_name=None, name=None, protocol='both',
+                 unpack_ipv4=False, *args, **kwargs):
         self.unpack_ipv4 = unpack_ipv4
         self.default_validators, invalid_error_message = \
             validators.ip_address_validators(protocol, unpack_ipv4)
         self.default_error_messages['invalid'] = invalid_error_message
         kwargs['max_length'] = 39
-        Field.__init__(self, *args, **kwargs)
+        Field.__init__(self, verbose_name, name, *args, **kwargs)
 
     def get_internal_type(self):
         return "GenericIPAddressField"

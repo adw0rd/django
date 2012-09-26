@@ -5,6 +5,7 @@ from optparse import OptionParser, NO_DEFAULT
 import imp
 import warnings
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError, handle_default_options
 from django.core.management.color import color_style
 from django.utils.importlib import import_module
@@ -102,10 +103,12 @@ def get_commands():
         _commands = dict([(name, 'django.core') for name in find_commands(__path__[0])])
 
         # Find the installed apps
+        from django.conf import settings
         try:
-            from django.conf import settings
             apps = settings.INSTALLED_APPS
-        except (AttributeError, EnvironmentError, ImportError):
+        except ImproperlyConfigured:
+            # Still useful for commands that do not require functional settings,
+            # like startproject or help
             apps = []
 
         # Find and load the management module for each installed app.

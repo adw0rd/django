@@ -41,9 +41,10 @@ from django.test.utils import (get_warnings_state, restore_warnings_state,
     override_settings)
 from django.test.utils import ContextList
 from django.utils import unittest as ut2
-from django.utils.encoding import smart_bytes, force_text
+from django.utils.encoding import force_text
 from django.utils import six
 from django.utils.unittest.util import safe_repr
+from django.utils.unittest import skipIf
 from django.views.static import serve
 
 __all__ = ('DocTestRunner', 'OutputChecker', 'TestCase', 'TransactionTestCase',
@@ -52,6 +53,7 @@ __all__ = ('DocTestRunner', 'OutputChecker', 'TestCase', 'TransactionTestCase',
 normalize_long_ints = lambda s: re.sub(r'(?<![\w])(\d+)L(?![\w])', '\\1', s)
 normalize_decimals = lambda s: re.sub(r"Decimal\('(\d+(\.\d*)?)'\)",
                                 lambda m: "Decimal(\"%s\")" % m.groups()[0], s)
+
 
 def to_list(value):
     """
@@ -358,7 +360,7 @@ class SimpleTestCase(ut2.TestCase):
             args: Extra args.
             kwargs: Extra kwargs.
         """
-        return self.assertRaisesRegexp(expected_exception,
+        return six.assertRaisesRegex(self, expected_exception,
                 re.escape(expected_message), callable_obj, *args, **kwargs)
 
     def assertFieldOutput(self, fieldclass, valid, invalid, field_args=None,
@@ -647,6 +649,7 @@ class TransactionTestCase(SimpleTestCase):
         self.assertEqual(response.status_code, status_code,
             msg_prefix + "Couldn't retrieve content: Response code was %d"
             " (expected %d)" % (response.status_code, status_code))
+        text = force_text(text, encoding=response._charset)
         content = response.content.decode(response._charset)
         if html:
             content = assert_and_parse_html(self, content, None,
@@ -682,6 +685,7 @@ class TransactionTestCase(SimpleTestCase):
         self.assertEqual(response.status_code, status_code,
             msg_prefix + "Couldn't retrieve content: Response code was %d"
             " (expected %d)" % (response.status_code, status_code))
+        text = force_text(text, encoding=response._charset)
         content = response.content.decode(response._charset)
         if html:
             content = assert_and_parse_html(self, content, None,

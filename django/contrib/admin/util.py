@@ -4,7 +4,7 @@ import datetime
 import decimal
 
 from django.db import models
-from django.db.models.sql.constants import LOOKUP_SEP
+from django.db.models.constants import LOOKUP_SEP
 from django.db.models.deletion import Collector
 from django.db.models.related import RelatedObject
 from django.forms.forms import pretty_name
@@ -12,7 +12,7 @@ from django.utils import formats
 from django.utils.html import format_html
 from django.utils.text import capfirst
 from django.utils import timezone
-from django.utils.encoding import force_text, smart_text, smart_bytes
+from django.utils.encoding import force_str, force_text, smart_text
 from django.utils import six
 from django.utils.translation import ungettext
 from django.core.urlresolvers import reverse
@@ -48,9 +48,9 @@ def prepare_lookup_value(key, value):
 def quote(s):
     """
     Ensure that primary key values do not confuse the admin URLs by escaping
-    any '/', '_' and ':' characters. Similar to urllib.quote, except that the
-    quoting is slightly different so that it doesn't get automatically
-    unquoted by the Web browser.
+    any '/', '_' and ':' and similarly problematic characters.
+    Similar to urllib.quote, except that the quoting is slightly different so
+    that it doesn't get automatically unquoted by the Web browser.
     """
     if not isinstance(s, six.string_types):
         return s
@@ -277,7 +277,7 @@ def label_for_field(name, model, model_admin=None, return_attr=False):
             label = force_text(model._meta.verbose_name)
             attr = six.text_type
         elif name == "__str__":
-            label = smart_bytes(model._meta.verbose_name)
+            label = force_str(model._meta.verbose_name)
             attr = bytes
         else:
             if callable(name):

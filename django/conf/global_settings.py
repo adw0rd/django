@@ -144,7 +144,7 @@ DEFAULT_CHARSET = 'utf-8'
 # Encoding of files read from disk (template and initial SQL files).
 FILE_CHARSET = 'utf-8'
 
-# E-mail address that error messages come from.
+# Email address that error messages come from.
 SERVER_EMAIL = 'root@localhost'
 
 # Whether to send broken-link emails.
@@ -487,6 +487,8 @@ PROFANITIES_LIST = ()
 ##################
 # AUTHENTICATION #
 ##################
+
+AUTH_USER_MODEL = 'auth.User'
 
 AUTHENTICATION_BACKENDS = ('django.contrib.auth.backends.ModelBackend',)
 

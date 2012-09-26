@@ -8,12 +8,13 @@ except ImportError:     # Python 2
 
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-from django.utils.encoding import smart_text
+from django.utils.encoding import force_text
 from django.utils.ipv6 import is_valid_ipv6_address
 from django.utils import six
 
 # These values, if given to validate(), will trigger the self.required check.
 EMPTY_VALUES = (None, '', [], (), {})
+
 
 class RegexValidator(object):
     regex = ''
@@ -36,17 +37,18 @@ class RegexValidator(object):
         """
         Validates that the input matches the regular expression.
         """
-        if not self.regex.search(smart_text(value)):
+        if not self.regex.search(force_text(value)):
             raise ValidationError(self.message, code=self.code)
+
 
 class URLValidator(RegexValidator):
     regex = re.compile(
-        r'^(?:http|ftp)s?://' # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
-        r'localhost|' #localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|' # ...or ipv4
-        r'\[?[A-F0-9]*:[A-F0-9:]+\]?)' # ...or ipv6
-        r'(?::\d+)?' # optional port
+        r'^(?:http|ftp)s?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+        r'localhost|'  # localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|'  # ...or ipv4
+        r'\[?[A-F0-9]*:[A-F0-9:]+\]?)'  # ...or ipv6
+        r'(?::\d+)?'  # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
 
     def __call__(self, value):
@@ -55,11 +57,11 @@ class URLValidator(RegexValidator):
         except ValidationError as e:
             # Trivial case failed. Try for possible IDN domain
             if value:
-                value = smart_text(value)
+                value = force_text(value)
                 scheme, netloc, path, query, fragment = urlsplit(value)
                 try:
-                    netloc = netloc.encode('idna').decode('ascii') # IDN -> ACE
-                except UnicodeError: # invalid domain part
+                    netloc = netloc.encode('idna').decode('ascii')  # IDN -> ACE
+                except UnicodeError:  # invalid domain part
                     raise e
                 url = urlunsplit((scheme, netloc, path, query, fragment))
                 super(URLValidator, self).__call__(url)
@@ -74,6 +76,7 @@ def validate_integer(value):
         int(value)
     except (ValueError, TypeError):
         raise ValidationError('')
+
 
 class EmailValidator(RegexValidator):
 
@@ -98,7 +101,7 @@ email_re = re.compile(
     r'|^"([\001-\010\013\014\016-\037!#-\[\]-\177]|\\[\001-\011\013\014\016-\177])*"'
     r')@((?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?$)'  # domain
     r'|\[(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\]$', re.IGNORECASE)  # literal form, ipv4 address (SMTP 4.1.3)
-validate_email = EmailValidator(email_re, _('Enter a valid e-mail address.'), 'invalid')
+validate_email = EmailValidator(email_re, _('Enter a valid email address.'), 'invalid')
 
 slug_re = re.compile(r'^[-a-zA-Z0-9_]+$')
 validate_slug = RegexValidator(slug_re, _("Enter a valid 'slug' consisting of letters, numbers, underscores or hyphens."), 'invalid')
@@ -106,9 +109,11 @@ validate_slug = RegexValidator(slug_re, _("Enter a valid 'slug' consisting of le
 ipv4_re = re.compile(r'^(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}$')
 validate_ipv4_address = RegexValidator(ipv4_re, _('Enter a valid IPv4 address.'), 'invalid')
 
+
 def validate_ipv6_address(value):
     if not is_valid_ipv6_address(value):
         raise ValidationError(_('Enter a valid IPv6 address.'), code='invalid')
+
 
 def validate_ipv46_address(value):
     try:
@@ -124,6 +129,7 @@ ip_address_validator_map = {
     'ipv4': ([validate_ipv4_address], _('Enter a valid IPv4 address.')),
     'ipv6': ([validate_ipv6_address], _('Enter a valid IPv6 address.')),
 }
+
 
 def ip_address_validators(protocol, unpack_ipv4):
     """
@@ -147,7 +153,7 @@ validate_comma_separated_integer_list = RegexValidator(comma_separated_int_list_
 
 class BaseValidator(object):
     compare = lambda self, a, b: a is not b
-    clean   = lambda self, x: x
+    clean = lambda self, x: x
     message = _('Ensure this value is %(limit_value)s (it is %(show_value)s).')
     code = 'limit_value'
 
@@ -164,25 +170,28 @@ class BaseValidator(object):
                 params=params,
             )
 
+
 class MaxValueValidator(BaseValidator):
     compare = lambda self, a, b: a > b
     message = _('Ensure this value is less than or equal to %(limit_value)s.')
     code = 'max_value'
+
 
 class MinValueValidator(BaseValidator):
     compare = lambda self, a, b: a < b
     message = _('Ensure this value is greater than or equal to %(limit_value)s.')
     code = 'min_value'
 
+
 class MinLengthValidator(BaseValidator):
     compare = lambda self, a, b: a < b
-    clean   = lambda self, x: len(x)
+    clean = lambda self, x: len(x)
     message = _('Ensure this value has at least %(limit_value)d characters (it has %(show_value)d).')
     code = 'min_length'
 
+
 class MaxLengthValidator(BaseValidator):
     compare = lambda self, a, b: a > b
-    clean   = lambda self, x: len(x)
+    clean = lambda self, x: len(x)
     message = _('Ensure this value has at most %(limit_value)d characters (it has %(show_value)d).')
     code = 'max_length'
-

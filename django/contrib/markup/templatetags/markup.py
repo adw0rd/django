@@ -13,7 +13,7 @@ markup syntaxes to HTML; currently there is support for:
 
 from django import template
 from django.conf import settings
-from django.utils.encoding import smart_bytes, force_text
+from django.utils.encoding import force_bytes, force_text
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -27,7 +27,7 @@ def textile(value):
             raise template.TemplateSyntaxError("Error in 'textile' filter: The Python textile library isn't installed.")
         return force_text(value)
     else:
-        return mark_safe(force_text(textile.textile(smart_bytes(value), encoding='utf-8', output='utf-8')))
+        return mark_safe(force_text(textile.textile(force_bytes(value), encoding='utf-8', output='utf-8')))
 
 @register.filter(is_safe=True)
 def markdown(value, arg=''):
@@ -47,6 +47,9 @@ def markdown(value, arg=''):
     they will be silently ignored.
 
     """
+    import warnings
+    warnings.warn('The markdown filter has been deprecated',
+                  category=DeprecationWarning)
     try:
         import markdown
     except ImportError:
@@ -72,6 +75,9 @@ def markdown(value, arg=''):
 
 @register.filter(is_safe=True)
 def restructuredtext(value):
+    import warnings
+    warnings.warn('The restructuredtext filter has been deprecated',
+                  category=DeprecationWarning)
     try:
         from docutils.core import publish_parts
     except ImportError:
@@ -80,5 +86,5 @@ def restructuredtext(value):
         return force_text(value)
     else:
         docutils_settings = getattr(settings, "RESTRUCTUREDTEXT_FILTER_SETTINGS", {})
-        parts = publish_parts(source=smart_bytes(value), writer_name="html4css1", settings_overrides=docutils_settings)
+        parts = publish_parts(source=force_bytes(value), writer_name="html4css1", settings_overrides=docutils_settings)
         return mark_safe(force_text(parts["fragment"]))

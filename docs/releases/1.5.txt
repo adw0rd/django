@@ -34,6 +34,23 @@ release featuring 2.7 support.
 What's new in Django 1.5
 ========================
 
+Configurable User model
+~~~~~~~~~~~~~~~~~~~~~~~
+
+In Django 1.5, you can now use your own model as the store for user-related
+data. If your project needs a username with more than 30 characters, or if
+you want to store usernames in a format other than first name/last name, or
+you want to put custom profile information onto your User object, you can
+now do so.
+
+If you have a third-party reusable application that references the User model,
+you may need to make some changes to the way you reference User instances. You
+should also document any specific features of the User model that your
+application relies upon.
+
+See the :ref:`documentation on custom User models <auth-custom-user>` for
+more details.
+
 Support for saving a subset of model's fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -116,10 +133,18 @@ Django 1.5 also includes several smaller improvements worth noting:
 * The :ref:`receiver <connecting-receiver-functions>` decorator is now able to
   connect to more than one signal by supplying a list of signals.
 
+* In the admin, you can now filter users by groups which they are members of.
+
 * :meth:`QuerySet.bulk_create()
   <django.db.models.query.QuerySet.bulk_create>` now has a batch_size
   argument. By default the batch_size is unlimited except for SQLite where
   single batch is limited so that 999 parameters per query isn't exceeded.
+
+* The :setting:`LOGIN_URL` and :setting:`LOGIN_REDIRECT_URL` settings now also
+  accept view function names and
+  :ref:`named URL patterns <naming-url-patterns>`. This allows you to reduce
+  configuration duplication. More information can be found in the
+  :func:`~django.contrib.auth.decorators.login_required` documentation.
 
 Backwards incompatible changes in 1.5
 =====================================
@@ -143,6 +168,21 @@ year|date:"Y" }}``.
 
 ``next_year`` and ``previous_year`` were also added in the context. They are
 calculated according to ``allow_empty`` and ``allow_future``.
+
+Context in year and month archive class-based views
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~django.views.generic.dates.YearArchiveView` and
+:class:`~django.views.generic.dates.MonthArchiveView` were documented to
+provide a ``date_list`` sorted in ascending order in the context, like their
+function-based predecessors, but it actually was in descending order. In 1.5,
+the documented order was restored. You may want to add (or remove) the
+``reversed`` keyword when you're iterating on ``date_list`` in a template::
+
+    {% for date in date_list reversed %}
+
+:class:`~django.views.generic.dates.ArchiveIndexView` still provides a
+``date_list`` in descending order.
 
 Context in TemplateView
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -227,7 +267,7 @@ If you have written a :ref:`custom password hasher <auth_password_storage>`,
 your ``encode()``, ``verify()`` or ``safe_summary()`` methods should accept
 Unicode parameters (``password``, ``salt`` or ``encoded``). If any of the
 hashing methods need byte strings, you can use the
-:func:`~django.utils.encoding.smart_bytes` utility to encode the strings.
+:func:`~django.utils.encoding.force_bytes` utility to encode the strings.
 
 Validation of previous_page_number and next_page_number
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -253,6 +293,18 @@ Session not saved on 500 responses
 
 Django's session middleware will skip saving the session data if the
 response's status code is 500.
+
+Email checks on failed admin login
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Prior to Django 1.5, if you attempted to log into the admin interface and
+mistakenly used your email address instead of your username, the admin
+interface would provide a warning advising that your email address was
+not your username. In Django 1.5, the introduction of
+:ref:`custom User models <auth-custom-user>` has required the removal of this
+warning. This doesn't change the login behavior of the admin site; it only
+affects the warning message that is displayed under one particular mode of
+login failure.
 
 Changes in tests execution
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -327,6 +379,11 @@ Miscellaneous
   function at :func:`django.utils.text.slugify`. Similarly, ``remove_tags`` is
   available at :func:`django.utils.html.remove_tags`.
 
+* Uploaded files are no longer created as executable by default. If you need
+  them to be executeable change :setting:`FILE_UPLOAD_PERMISSIONS` to your
+  needs. The new default value is `0666` (octal) and the current umask value
+  is first masked out.
+
 Features deprecated in 1.5
 ==========================
 
@@ -358,3 +415,24 @@ the built-in :func:`itertools.product` instead.
 The :class:`~django.utils.encoding.StrAndUnicode` mix-in has been deprecated.
 Define a ``__str__`` method and apply the
 :func:`~django.utils.encoding.python_2_unicode_compatible` decorator instead.
+
+``django.utils.markup``
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The markup contrib module has been deprecated and will follow an accelerated
+deprecation schedule. Direct use of python markup libraries or 3rd party tag
+libraries is preferred to Django maintaining this functionality in the
+framework.
+
+:setting:`AUTH_PROFILE_MODULE`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With the introduction of :ref:`custom User models <auth-custom-user>`, there is
+no longer any need for a built-in mechanism to store user profile data.
+
+You can still define user profiles models that have a one-to-one relation with
+the User model - in fact, for many applications needing to associate data with
+a User account, this will be an appropriate design pattern to follow. However,
+the :setting:`AUTH_PROFILE_MODULE` setting, and the
+:meth:`~django.contrib.auth.models.User.get_profile()` method for accessing
+the user profile model, should not be used any longer.

@@ -103,9 +103,23 @@ associated with proxy models.
 
 New ``view`` variable in class-based views context
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 In all :doc:`generic class-based views </topics/class-based-views/index>`
 (or any class-based view inheriting from ``ContextMixin``), the context dictionary
 contains a ``view`` variable that points to the ``View`` instance.
+
+GeoDjango
+~~~~~~~~~
+
+* :class:`~django.contrib.gis.geos.LineString` and
+  :class:`~django.contrib.gis.geos.MultiLineString` GEOS objects now support the
+  :meth:`~django.contrib.gis.geos.GEOSGeometry.interpolate()` and
+  :meth:`~django.contrib.gis.geos.GEOSGeometry.project()` methods
+  (so-called linear referencing).
+
+* The wkb and hex properties of `GEOSGeometry` objects preserve the Z dimension.
+
+* Support for GDAL < 1.5 has been dropped.
 
 Minor features
 ~~~~~~~~~~~~~~
@@ -145,6 +159,22 @@ Django 1.5 also includes several smaller improvements worth noting:
   :ref:`named URL patterns <naming-url-patterns>`. This allows you to reduce
   configuration duplication. More information can be found in the
   :func:`~django.contrib.auth.decorators.login_required` documentation.
+
+* Django now provides a mod_wsgi :doc:`auth handler
+  </howto/deployment/wsgi/apache-auth>`.
+
+* The :meth:`QuerySet.delete() <django.db.models.query.QuerySet.delete>`
+  and :meth:`Model.delete() <django.db.models.Model.delete()>` can now take
+  fast-path in some cases. The fast-path allows for less queries and less
+  objects fetched into memory. See :meth:`QuerySet.delete()
+  <django.db.models.query.QuerySet.delete>` for details.
+
+* An instance of :class:`~django.core.urlresolvers.ResolverMatch` is stored on
+  the request as ``resolver_match``.
+
+* By default, all logging messages reaching the `django` logger when
+  :setting:`DEBUG` is `True` are sent to the console (unless you redefine the
+  logger in your :setting:`LOGGING` setting).
 
 Backwards incompatible changes in 1.5
 =====================================
@@ -369,8 +399,6 @@ on the form.
 
 Miscellaneous
 ~~~~~~~~~~~~~
-
-* GeoDjango dropped support for GDAL < 1.5
 
 * :func:`~django.utils.http.int_to_base36` properly raises a :exc:`TypeError`
   instead of :exc:`ValueError` for non-integer inputs.

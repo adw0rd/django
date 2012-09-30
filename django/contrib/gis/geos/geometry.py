@@ -25,7 +25,7 @@ from django.contrib.gis.geos import prototypes as capi
 
 # These functions provide access to a thread-local instance
 # of their corresponding GEOS I/O class.
-from django.contrib.gis.geos.prototypes.io import wkt_r, wkt_w, wkb_r, wkb_w, ewkb_w, ewkb_w3d
+from django.contrib.gis.geos.prototypes.io import wkt_r, wkt_w, wkb_r, wkb_w, ewkb_w
 
 # For recognizing geometry input.
 from django.contrib.gis.geometry.regex import hex_regex, wkt_regex, json_regex
@@ -388,28 +388,24 @@ class GEOSGeometry(GEOSBase, ListMixin):
     def hex(self):
         """
         Returns the WKB of this Geometry in hexadecimal form.  Please note
-        that the SRID and Z values are not included in this representation
-        because it is not a part of the OGC specification (use the `hexewkb`
-        property instead).
+        that the SRID is not included in this representation because it is not
+        a part of the OGC specification (use the `hexewkb` property instead).
         """
         # A possible faster, all-python, implementation:
         #  str(self.wkb).encode('hex')
-        return wkb_w().write_hex(self)
+        return wkb_w(self.hasz and 3 or 2).write_hex(self)
 
     @property
     def hexewkb(self):
         """
         Returns the EWKB of this Geometry in hexadecimal form.  This is an
-        extension of the WKB specification that includes SRID and Z values
-        that are a part of this geometry.
+        extension of the WKB specification that includes SRID value that are
+        a part of this geometry.
         """
-        if self.hasz:
-            if not GEOS_PREPARE:
-                # See: http://trac.osgeo.org/geos/ticket/216
-                raise GEOSException('Upgrade GEOS to 3.1 to get valid 3D HEXEWKB.')
-            return ewkb_w3d().write_hex(self)
-        else:
-            return ewkb_w().write_hex(self)
+        if self.hasz and not GEOS_PREPARE:
+            # See: http://trac.osgeo.org/geos/ticket/216
+            raise GEOSException('Upgrade GEOS to 3.1 to get valid 3D HEXEWKB.')
+        return ewkb_w(self.hasz and 3 or 2).write_hex(self)
 
     @property
     def json(self):
@@ -429,22 +425,19 @@ class GEOSGeometry(GEOSBase, ListMixin):
         as a Python buffer.  SRID and Z values are not included, use the
         `ewkb` property instead.
         """
-        return wkb_w().write(self)
+        return wkb_w(self.hasz and 3 or 2).write(self)
 
     @property
     def ewkb(self):
         """
         Return the EWKB representation of this Geometry as a Python buffer.
         This is an extension of the WKB specification that includes any SRID
-        and Z values that are a part of this geometry.
+        value that are a part of this geometry.
         """
-        if self.hasz:
-            if not GEOS_PREPARE:
-                # See: http://trac.osgeo.org/geos/ticket/216
-                raise GEOSException('Upgrade GEOS to 3.1 to get valid 3D EWKB.')
-            return ewkb_w3d().write(self)
-        else:
-            return ewkb_w().write(self)
+        if self.hasz and not GEOS_PREPARE:
+            # See: http://trac.osgeo.org/geos/ticket/216
+            raise GEOSException('Upgrade GEOS to 3.1 to get valid 3D EWKB.')
+        return ewkb_w(self.hasz and 3 or 2).write(self)
 
     @property
     def kml(self):
@@ -516,7 +509,7 @@ class GEOSGeometry(GEOSBase, ListMixin):
             raise GEOSException("GDAL library is not available to transform() geometry.")
 
         # Creating an OGR Geometry, which is then transformed.
-        g = gdal.OGRGeometry(self.wkb, srid)
+        g = self.ogr
         g.transform(ct)
         # Getting a new GEOS pointer
         ptr = wkb_r().read(g.wkb)
@@ -581,6 +574,20 @@ class GEOSGeometry(GEOSBase, ListMixin):
         "Return the envelope for this geometry (a polygon)."
         return self._topology(capi.geos_envelope(self.ptr))
 
+    def interpolate(self, distance):
+        if not isinstance(self, (LineString, MultiLineString)):
+            raise TypeError('interpolate only works on LineString and MultiLineString geometries')
+        if not hasattr(capi, 'geos_interpolate'):
+            raise NotImplementedError('interpolate requires GEOS 3.2+')
+        return self._topology(capi.geos_interpolate(self.ptr, distance))
+
+    def interpolate_normalized(self, distance):
+        if not isinstance(self, (LineString, MultiLineString)):
+            raise TypeError('interpolate only works on LineString and MultiLineString geometries')
+        if not hasattr(capi, 'geos_interpolate_normalized'):
+            raise NotImplementedError('interpolate_normalized requires GEOS 3.2+')
+        return self._topology(capi.geos_interpolate_normalized(self.ptr, distance))
+
     def intersection(self, other):
         "Returns a Geometry representing the points shared by this Geometry and other."
         return self._topology(capi.geos_intersection(self.ptr, other.ptr))
@@ -589,6 +596,24 @@ class GEOSGeometry(GEOSBase, ListMixin):
     def point_on_surface(self):
         "Computes an interior point of this Geometry."
         return self._topology(capi.geos_pointonsurface(self.ptr))
+
+    def project(self, point):
+        if not isinstance(point, Point):
+            raise TypeError('locate_point argument must be a Point')
+        if not isinstance(self, (LineString, MultiLineString)):
+            raise TypeError('locate_point only works on LineString and MultiLineString geometries')
+        if not hasattr(capi, 'geos_project'):
+            raise NotImplementedError('geos_project requires GEOS 3.2+')
+        return capi.geos_project(self.ptr, point.ptr)
+
+    def project_normalized(self, point):
+        if not isinstance(point, Point):
+            raise TypeError('locate_point argument must be a Point')
+        if not isinstance(self, (LineString, MultiLineString)):
+            raise TypeError('locate_point only works on LineString and MultiLineString geometries')
+        if not hasattr(capi, 'geos_project_normalized'):
+            raise NotImplementedError('project_normalized requires GEOS 3.2+')
+        return capi.geos_project_normalized(self.ptr, point.ptr)
 
     def relate(self, other):
         "Returns the DE-9IM intersection matrix for this Geometry and the other."

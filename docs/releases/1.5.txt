@@ -119,7 +119,8 @@ GeoDjango
 
 * The wkb and hex properties of `GEOSGeometry` objects preserve the Z dimension.
 
-* Support for GDAL < 1.5 has been dropped.
+* Support for PostGIS 2.0 has been added and support for GDAL < 1.5 has been
+  dropped.
 
 Minor features
 ~~~~~~~~~~~~~~
@@ -175,6 +176,28 @@ Django 1.5 also includes several smaller improvements worth noting:
 * By default, all logging messages reaching the `django` logger when
   :setting:`DEBUG` is `True` are sent to the console (unless you redefine the
   logger in your :setting:`LOGGING` setting).
+
+* When using :class:`~django.template.RequestContext`, it is now possible to
+  look up permissions by using ``{% if 'someapp.someperm' in perms %}``
+  in templates.
+
+* It's not required any more to have ``404.html`` and ``500.html`` templates in
+  the root templates directory. Django will output some basic error messages for
+  both situations when those templates are not found. Of course, it's still
+  recommended as good practice to provide those templates in order to present
+  pretty error pages to the user.
+
+* :mod:`django.contrib.auth` provides a new signal that is emitted
+  whenever a user fails to login successfully. See
+  :data:`~django.contrib.auth.signals.user_login_failed`
+
+* The loaddata management command now supports an `ignorenonexistent` option to
+  ignore data for fields that no longer exist.
+
+* :meth:`~django.test.SimpleTestCase.assertXMLEqual` and
+  :meth:`~django.test.SimpleTestCase.assertXMLNotEqual` new assertions allow
+  you to test equality for XML content at a semantic level, without caring for
+  syntax differences (spaces, attribute order, etc.).
 
 Backwards incompatible changes in 1.5
 =====================================
@@ -400,6 +423,9 @@ on the form.
 Miscellaneous
 ~~~~~~~~~~~~~
 
+* :class:`django.forms.ModelMultipleChoiceField` now returns an empty
+  ``QuerySet`` as the empty value instead of an empty list.
+
 * :func:`~django.utils.http.int_to_base36` properly raises a :exc:`TypeError`
   instead of :exc:`ValueError` for non-integer inputs.
 
@@ -411,6 +437,12 @@ Miscellaneous
   them to be executeable change :setting:`FILE_UPLOAD_PERMISSIONS` to your
   needs. The new default value is `0666` (octal) and the current umask value
   is first masked out.
+
+* The :ref:`F() expressions <query-expressions>` supported bitwise operators by
+  ``&`` and ``|``. These operators are now available using ``.bitand()`` and
+  ``.bitor()`` instead. The removal of ``&`` and ``|`` was done to be consistent with
+  :ref:`Q() expressions <complex-lookups-with-q>` and ``QuerySet`` combining where
+  the operators are used as boolean AND and OR operators.
 
 Features deprecated in 1.5
 ==========================

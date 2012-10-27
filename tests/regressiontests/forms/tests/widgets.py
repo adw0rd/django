@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 import copy
 import datetime
 
-from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.forms import *
 from django.forms.widgets import RadioFieldRenderer
@@ -13,6 +12,7 @@ from django.utils.safestring import mark_safe
 from django.utils import six
 from django.utils.translation import activate, deactivate
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.utils.encoding import python_2_unicode_compatible
 
 
@@ -224,6 +224,10 @@ class FormsWidgetTestCase(TestCase):
         # dictionary (because HTML form submission doesn't send any result for unchecked
         # checkboxes).
         self.assertFalse(w.value_from_datadict({}, {}, 'testing'))
+
+        value = w.value_from_datadict({'testing': '0'}, {}, 'testing')
+        self.assertIsInstance(value, bool)
+        self.assertTrue(value)
 
         self.assertFalse(w._has_changed(None, None))
         self.assertFalse(w._has_changed(None, ''))
@@ -989,16 +993,14 @@ class NullBooleanSelectLazyForm(Form):
     """Form to test for lazy evaluation. Refs #17190"""
     bool = BooleanField(widget=NullBooleanSelect())
 
+@override_settings(USE_L10N=True)
 class FormsI18NWidgetsTestCase(TestCase):
     def setUp(self):
         super(FormsI18NWidgetsTestCase, self).setUp()
-        self.old_use_l10n = getattr(settings, 'USE_L10N', False)
-        settings.USE_L10N = True
         activate('de-at')
 
     def tearDown(self):
         deactivate()
-        settings.USE_L10N = self.old_use_l10n
         super(FormsI18NWidgetsTestCase, self).tearDown()
 
     def test_splitdatetime(self):

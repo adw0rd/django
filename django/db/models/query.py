@@ -983,6 +983,12 @@ class ValuesQuerySet(QuerySet):
         for row in self.query.get_compiler(self.db).results_iter():
             yield dict(zip(names, row))
 
+    def delete(self):
+        # values().delete() doesn't work currently - make sure it raises an
+        # user friendly error.
+        raise TypeError("Queries with .values() or .values_list() applied "
+                        "can't be deleted")
+
     def _setup_query(self):
         """
         Constructs the field_names list that the values query will be
@@ -1271,6 +1277,18 @@ class EmptyQuerySet(QuerySet):
             kwargs[arg.default_alias] = arg
         return dict([(key, None) for key in kwargs])
 
+    def values(self, *fields):
+        """
+        Always returns EmptyQuerySet.
+        """
+        return self
+
+    def values_list(self, *fields, **kwargs):
+        """
+        Always returns EmptyQuerySet.
+        """
+        return self
+
     # EmptyQuerySet is always an empty result in where-clauses (and similar
     # situations).
     value_annotation = False
@@ -1400,8 +1418,15 @@ def get_cached_row(row, index_start, using,  klass_info, offset=0):
     fields = row[index_start : index_start + field_count]
     # If all the select_related columns are None, then the related
     # object must be non-existent - set the relation to None.
-    # Otherwise, construct the related object.
-    if fields == (None,) * field_count:
+    # Otherwise, construct the related object. Also, some backends treat ''
+    # and None equivalently for char fields, so we have to be prepared for
+    # '' values.
+    if connections[using].features.interprets_empty_strings_as_nulls:
+        vals = tuple([None if f == '' else f for f in fields])
+    else:
+        vals = fields
+
+    if vals == (None,) * field_count:
         obj = None
     else:
         if field_names:

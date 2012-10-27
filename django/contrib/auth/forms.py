@@ -52,9 +52,6 @@ class ReadOnlyPasswordHashField(forms.Field):
         kwargs.setdefault("required", False)
         super(ReadOnlyPasswordHashField, self).__init__(*args, **kwargs)
 
-    def clean_password(self):
-        return self.initial
-
 
 class UserCreationForm(forms.ModelForm):
     """
@@ -130,13 +127,19 @@ class UserChangeForm(forms.ModelForm):
         if f is not None:
             f.queryset = f.queryset.select_related('content_type')
 
+    def clean_password(self):
+        # Regardless of what the user provides, return the initial value.
+        # This is done here, rather than on the field, because the
+        # field does not have access to the initial value
+        return self.initial["password"]
+
 
 class AuthenticationForm(forms.Form):
     """
     Base class for authenticating users. Extend this to get a form that accepts
     username/password logins.
     """
-    username = forms.CharField(max_length=30)
+    username = forms.CharField(max_length=254)
     password = forms.CharField(label=_("Password"), widget=forms.PasswordInput)
 
     error_messages = {
@@ -198,7 +201,7 @@ class PasswordResetForm(forms.Form):
         'unusable': _("The user account associated with this email "
                       "address cannot reset the password."),
     }
-    email = forms.EmailField(label=_("Email"), max_length=75)
+    email = forms.EmailField(label=_("Email"), max_length=254)
 
     def clean_email(self):
         """

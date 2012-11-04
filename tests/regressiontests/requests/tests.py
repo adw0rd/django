@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
 import time
@@ -11,7 +12,7 @@ from django.http import HttpRequest, HttpResponse, parse_cookie, build_request_r
 from django.test.client import FakePayload
 from django.test.utils import override_settings, str_prefix
 from django.utils import unittest
-from django.utils.http import cookie_date
+from django.utils.http import cookie_date, urlencode
 from django.utils.timezone import utc
 
 
@@ -351,6 +352,30 @@ class RequestsTests(unittest.TestCase):
         self.assertEqual(request.read(2), b'na')
         self.assertRaises(Exception, lambda: request.body)
         self.assertEqual(request.POST, {})
+
+    def test_non_ascii_POST(self):
+        payload = FakePayload(urlencode({'key': 'España'}))
+        request = WSGIRequest({
+            'REQUEST_METHOD': 'POST',
+            'CONTENT_LENGTH': len(payload),
+            'CONTENT_TYPE': 'application/x-www-form-urlencoded',
+            'wsgi.input': payload,
+        })
+        self.assertEqual(request.POST, {'key': ['España']})
+
+    def test_alternate_charset_POST(self):
+        """
+        Test a POST with non-utf-8 payload encoding.
+        """
+        from django.utils.http import urllib_parse
+        payload = FakePayload(urllib_parse.urlencode({'key': 'España'.encode('latin-1')}))
+        request = WSGIRequest({
+            'REQUEST_METHOD': 'POST',
+            'CONTENT_LENGTH': len(payload),
+            'CONTENT_TYPE': 'application/x-www-form-urlencoded; charset=iso-8859-1',
+            'wsgi.input': payload,
+        })
+        self.assertEqual(request.POST, {'key': ['España']})
 
     def test_body_after_POST_multipart(self):
         """

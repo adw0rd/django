@@ -296,6 +296,12 @@ Django 1.5 also includes several smaller improvements worth noting:
   you to test equality for XML content at a semantic level, without caring for
   syntax differences (spaces, attribute order, etc.).
 
+* RemoteUserMiddleware now forces logout when the REMOTE_USER header
+  disappears during the same browser session.
+
+* The :ref:`cache-based session backend <cached-sessions-backend>` can store
+  session data in a non-default cache.
+
 Backwards incompatible changes in 1.5
 =====================================
 
@@ -613,7 +619,6 @@ Define a ``__str__`` method and apply the
 The :func:`~django.utils.itercompat.product` function has been deprecated. Use
 the built-in :func:`itertools.product` instead.
 
-
 ``django.utils.markup``
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -621,3 +626,22 @@ The markup contrib module has been deprecated and will follow an accelerated
 deprecation schedule. Direct use of python markup libraries or 3rd party tag
 libraries is preferred to Django maintaining this functionality in the
 framework.
+
+``cleanup`` management command
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :djadmin:`cleanup` management command has been deprecated and replaced by
+:djadmin:`clearsessions`.
+
+``daily_cleanup.py`` script
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The undocumented ``daily_cleanup.py`` script has been deprecated. Use the
+:djadmin:`clearsessions` management command instead.
+
+``depth`` keyword argument in ``select_related``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``depth`` keyword argument in
+:meth:`~django.db.models.query.QuerySet.select_related` has been deprecated.
+You should use field names instead.

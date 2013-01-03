@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import datetime
 import pickle
 from operator import attrgetter
+import warnings
 
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
@@ -14,16 +15,6 @@ from django.test.utils import override_settings
 from django.utils.six import StringIO
 
 from .models import Book, Person, Pet, Review, UserProfile
-
-
-def copy_content_types_from_default_to_other():
-    # On post_syncdb, content types are created in the 'default' database.
-    # However, tests of generic foreign keys require them in 'other' too.
-    # The problem is masked on backends that defer constraints checks: at the
-    # end of each test, there's a rollback, and constraints are never checked.
-    # It only appears on MySQL + InnoDB.
-    for ct in ContentType.objects.using('default').all():
-        ct.save(using='other')
 
 
 class QueryTestCase(TestCase):
@@ -705,8 +696,6 @@ class QueryTestCase(TestCase):
 
     def test_generic_key_separation(self):
         "Generic fields are constrained to a single database"
-        copy_content_types_from_default_to_other()
-
         # Create a book and author on the default database
         pro = Book.objects.create(title="Pro Django",
                                   published=datetime.date(2008, 12, 16))
@@ -734,8 +723,6 @@ class QueryTestCase(TestCase):
 
     def test_generic_key_reverse_operations(self):
         "Generic reverse manipulations are all constrained to a single DB"
-        copy_content_types_from_default_to_other()
-
         dive = Book.objects.using('other').create(title="Dive into Python",
                                                   published=datetime.date(2009, 5, 4))
 
@@ -780,8 +767,6 @@ class QueryTestCase(TestCase):
 
     def test_generic_key_cross_database_protection(self):
         "Operations that involve sharing generic key objects across databases raise an error"
-        copy_content_types_from_default_to_other()
-
         # Create a book and author on the default database
         pro = Book.objects.create(title="Pro Django",
                                   published=datetime.date(2008, 12, 16))
@@ -833,8 +818,6 @@ class QueryTestCase(TestCase):
 
     def test_generic_key_deletion(self):
         "Cascaded deletions of Generic Key relations issue queries on the right database"
-        copy_content_types_from_default_to_other()
-
         dive = Book.objects.using('other').create(title="Dive into Python",
                                                   published=datetime.date(2009, 5, 4))
         review = Review.objects.using('other').create(source="Python Weekly", content_object=dive)
@@ -1402,8 +1385,6 @@ class RouterTestCase(TestCase):
 
     def test_generic_key_cross_database_protection(self):
         "Generic Key operations can span databases if they share a source"
-        copy_content_types_from_default_to_other()
-
         # Create a book and author on the default database
         pro = Book.objects.using('default'
                 ).create(title="Pro Django", published=datetime.date(2008, 12, 16))
@@ -1515,8 +1496,6 @@ class RouterTestCase(TestCase):
 
     def test_generic_key_managers(self):
         "Generic key relations are represented by managers, and can be controlled like managers"
-        copy_content_types_from_default_to_other()
-
         pro = Book.objects.using('other').create(title="Pro Django",
                                                  published=datetime.date(2008, 12, 16))
 
@@ -1618,7 +1597,7 @@ class AuthTestCase(TestCase):
         new_io = StringIO()
         management.call_command('dumpdata', 'auth', format='json', database='other', stdout=new_io)
         command_output = new_io.getvalue().strip()
-        self.assertTrue('"email": "alice@example.com",' in command_output)
+        self.assertTrue('"email": "alice@example.com"' in command_output)
 
 
 @override_settings(AUTH_PROFILE_MODULE='multiple_database.UserProfile')
@@ -1634,8 +1613,10 @@ class UserProfileTestCase(TestCase):
         bob_profile = UserProfile(user=bob, flavor='crunchy frog')
         bob_profile.save()
 
-        self.assertEqual(alice.get_profile().flavor, 'chocolate')
-        self.assertEqual(bob.get_profile().flavor, 'crunchy frog')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            self.assertEqual(alice.get_profile().flavor, 'chocolate')
+            self.assertEqual(bob.get_profile().flavor, 'crunchy frog')
 
 class AntiPetRouter(object):
     # A router that only expresses an opinion on syncdb,
@@ -1922,3 +1903,39 @@ class RouterModelArgumentTestCase(TestCase):
         pet = Pet.objects.create(owner=person, name='Wart')
         # test related FK collection
         person.delete()
+
+
+class SyncOnlyDefaultDatabaseRouter(object):
+    def allow_syncdb(self, db, model):
+        return db == DEFAULT_DB_ALIAS
+
+
+class SyncDBTestCase(TestCase):
+    multi_db = True
+
+    def test_syncdb_to_other_database(self):
+        """Regression test for #16039: syncdb with --database option."""
+        cts = ContentType.objects.using('other').filter(app_label='multiple_database')
+
+        count = cts.count()
+        self.assertGreater(count, 0)
+
+        cts.delete()
+        management.call_command('syncdb', verbosity=0, interactive=False,
+            load_initial_data=False, database='other')
+        self.assertEqual(cts.count(), count)
+
+    def test_syncdb_to_other_database_with_router(self):
+        """Regression test for #16039: syncdb with --database option."""
+        cts = ContentType.objects.using('other').filter(app_label='multiple_database')
+
+        cts.delete()
+        try:
+            old_routers = router.routers
+            router.routers = [SyncOnlyDefaultDatabaseRouter()]
+            management.call_command('syncdb', verbosity=0, interactive=False,
+                load_initial_data=False, database='other')
+        finally:
+            router.routers = old_routers
+
+        self.assertEqual(cts.count(), 0)

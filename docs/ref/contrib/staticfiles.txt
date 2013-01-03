@@ -33,7 +33,7 @@ STATICFILES_DIRS
 Default: ``[]``
 
 This setting defines the additional locations the staticfiles app will traverse
-if the :class:`FileSystemFinder` finder is enabled, e.g. if you use the
+if the ``FileSystemFinder`` finder is enabled, e.g. if you use the
 :djadmin:`collectstatic` or :djadmin:`findstatic` management command or use the
 static file serving view.
 
@@ -82,8 +82,6 @@ Default: ``'django.contrib.staticfiles.storage.StaticFilesStorage'``
 The file storage engine to use when collecting static files with the
 :djadmin:`collectstatic` management command.
 
-.. versionadded:: 1.4
-
 A ready-to-use instance of the storage backend defined in this setting
 can be found at ``django.contrib.staticfiles.storage.staticfiles_storage``.
 
@@ -103,19 +101,19 @@ The list of finder backends that know how to find static files in
 various locations.
 
 The default will find files stored in the :setting:`STATICFILES_DIRS` setting
-(using :class:`django.contrib.staticfiles.finders.FileSystemFinder`) and in a
+(using ``django.contrib.staticfiles.finders.FileSystemFinder``) and in a
 ``static`` subdirectory of each app (using
-:class:`django.contrib.staticfiles.finders.AppDirectoriesFinder`)
+``django.contrib.staticfiles.finders.AppDirectoriesFinder``)
 
 One finder is disabled by default:
-:class:`django.contrib.staticfiles.finders.DefaultStorageFinder`. If added to
+``django.contrib.staticfiles.finders.DefaultStorageFinder``. If added to
 your :setting:`STATICFILES_FINDERS` setting, it will look for static files in
 the default file storage as defined by the :setting:`DEFAULT_FILE_STORAGE`
 setting.
 
 .. note::
 
-    When using the :class:`AppDirectoriesFinder` finder, make sure your apps
+    When using the ``AppDirectoriesFinder`` finder, make sure your apps
     can be found by staticfiles. Simply add the app to the
     :setting:`INSTALLED_APPS` setting of your site.
 
@@ -146,8 +144,6 @@ Files are searched by using the :setting:`enabled finders
 :setting:`STATICFILES_DIRS` and in the ``'static'`` directory of apps
 specified by the :setting:`INSTALLED_APPS` setting.
 
-.. versionadded:: 1.4
-
 The :djadmin:`collectstatic` management command calls the
 :meth:`~django.contrib.staticfiles.storage.StaticFilesStorage.post_process`
 method of the :setting:`STATICFILES_STORAGE` after each run and passes
@@ -176,8 +172,6 @@ Some commonly used options are:
 .. django-admin-option:: -c
 .. django-admin-option:: --clear
 
-    .. versionadded:: 1.4
-
     Clear the existing files before trying to copy or link the original file.
 
 .. django-admin-option:: -l
@@ -186,8 +180,6 @@ Some commonly used options are:
     Create a symbolic link to each file instead of copying.
 
 .. django-admin-option:: --no-post-process
-
-    .. versionadded:: 1.4
 
     Don't call the
     :meth:`~django.contrib.staticfiles.storage.StaticFilesStorage.post_process`
@@ -276,8 +268,6 @@ StaticFilesStorage
 
     .. method:: post_process(paths, **options)
 
-    .. versionadded:: 1.4
-
     This method is called by the :djadmin:`collectstatic` management command
     after each run and gets passed the local storages and paths of found
     files as a dictionary, as well as the command line options.
@@ -290,8 +280,6 @@ CachedStaticFilesStorage
 ------------------------
 
 .. class:: storage.CachedStaticFilesStorage
-
-    .. versionadded:: 1.4
 
     A subclass of the :class:`~django.contrib.staticfiles.storage.StaticFilesStorage`
     storage backend which caches the files it saves by appending the MD5 hash
@@ -369,8 +357,6 @@ static
 ------
 
 .. templatetag:: staticfiles-static
-
-.. versionadded:: 1.4
 
 Uses the configured :setting:`STATICFILES_STORAGE` storage to create the
 full URL for the given relative path, e.g.:

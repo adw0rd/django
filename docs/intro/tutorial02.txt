@@ -398,9 +398,9 @@ That adds a "Filter" sidebar that lets people filter the change list by the
    :alt: Polls change list page, updated
 
 The type of filter displayed depends on the type of field you're filtering on.
-Because ``pub_date`` is a :class:`~django.db.models.fields.DateTimeField`,
-Django knows to give appropriate filter options: "Any date," "Today," "Past 7
-days," "This month," "This year."
+Because ``pub_date`` is a :class:`~django.db.models.DateTimeField`, Django
+knows to give appropriate filter options: "Any date," "Today," "Past 7 days,"
+"This month," "This year."
 
 This is shaping up well. Let's add some search capability::
 
@@ -444,11 +444,6 @@ Create a ``mytemplates`` directory in your project directory. Templates can
 live anywhere on your filesystem that Django can access. (Django runs as
 whatever user your server runs.) However, keeping your templates within the
 project is a good convention to follow.
-
-When you’ve done that, create a directory polls in your template directory.
-Within that, create a file called index.html. Note that our
-``loader.get_template('polls/index.html')`` code from above maps to
-[template_directory]/polls/index.html” on the filesystem.
 
 By default, :setting:`TEMPLATE_DIRS` is empty. So, let's add a line to it, to
 tell Django where our templates live::

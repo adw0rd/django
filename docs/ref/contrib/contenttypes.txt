@@ -234,13 +234,15 @@ lookup::
 
 .. versionadded:: 1.5
 
-Prior to Django 1.5 :meth:`~ContentTypeManager.get_for_model()` and
-:meth:`~ContentTypeManager.get_for_models()` always returned the
-:class:`~django.contrib.contenttypes.models.ContentType` associated with the
-concrete model of the specified one(s). That means there was no way to retreive
-the :class:`~django.contrib.contenttypes.models.ContentType` of a proxy model
+Prior to Django 1.5,
+:meth:`~django.contrib.contenttypes.models.ContentTypeManager.get_for_model` and
+:meth:`~django.contrib.contenttypes.models.ContentTypeManager.get_for_models`
+always returned the :class:`~django.contrib.contenttypes.models.ContentType`
+associated with the concrete model of the specified one(s). That means there
+was no way to retreive the
+:class:`~django.contrib.contenttypes.models.ContentType` of a proxy model
 using those methods. As of Django 1.5 you can now pass a boolean flag –
-respectively ``for_concrete_model`` and ``for_concrete_models`` – to specify
+``for_concrete_model`` and ``for_concrete_models`` respectively – to specify
 wether or not you want to retreive the
 :class:`~django.contrib.contenttypes.models.ContentType` for the concrete or
 direct model.
@@ -451,7 +453,7 @@ Generic relations in forms and admin
 ------------------------------------
 
 The :mod:`django.contrib.contenttypes.generic` module provides
-:class:`~django.contrib.contenttypes.generic.BaseGenericInlineFormSet`,
+``BaseGenericInlineFormSet``,
 :class:`~django.contrib.contenttypes.generic.GenericTabularInline`
 and :class:`~django.contrib.contenttypes.generic.GenericStackedInline`
 (the last two are subclasses of
@@ -478,3 +480,9 @@ information.
 
         The name of the integer field that represents the ID of the related
         object. Defaults to ``object_id``.
+
+.. class:: GenericTabularInline
+.. class:: GenericStackedInline
+
+    Subclasses of :class:`GenericInlineModelAdmin` with stacked and tabular
+    layouts, respectively.

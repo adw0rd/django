@@ -49,15 +49,6 @@ def stringfilter(func):
     # when multiple decorators are applied).
     _dec._decorated_function = getattr(func, '_decorated_function', func)
 
-    for attr in ('is_safe', 'needs_autoescape'):
-        if hasattr(func, attr):
-            import warnings
-            warnings.warn("Setting the %s attribute of a template filter "
-                          "function is deprecated; use @register.filter(%s=%s) "
-                          "instead" % (attr, attr, getattr(func, attr)),
-                          DeprecationWarning)
-            setattr(_dec, attr, getattr(func, attr))
-
     return wraps(func)(_dec)
 
 
@@ -704,7 +695,7 @@ def get_digit(value, arg):
 @register.filter(expects_localtime=True, is_safe=False)
 def date(value, arg=None):
     """Formats a date according to the given format."""
-    if not value:
+    if value in (None, ''):
         return ''
     if arg is None:
         arg = settings.DATE_FORMAT

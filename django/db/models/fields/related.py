@@ -5,7 +5,7 @@ from django.db.backends import util
 from django.db.models import signals, get_model
 from django.db.models.fields import (AutoField, Field, IntegerField,
     PositiveIntegerField, PositiveSmallIntegerField, FieldDoesNotExist)
-from django.db.models.related import RelatedObject
+from django.db.models.related import RelatedObject, PathInfo
 from django.db.models.query import QuerySet
 from django.db.models.query_utils import QueryWrapper
 from django.db.models.deletion import CASCADE
@@ -15,7 +15,6 @@ from django.utils.translation import ugettext_lazy as _, string_concat
 from django.utils.functional import curry, cached_property
 from django.core import exceptions
 from django import forms
-
 
 RECURSIVE_RELATIONSHIP_CONSTANT = 'self'
 
@@ -54,14 +53,16 @@ def add_lazy_relation(cls, field, relation, operation):
 
     else:
         # Look for an "app.Model" relation
-        try:
-            app_label, model_name = relation.split(".")
-        except ValueError:
-            # If we can't split, assume a model in current app
-            app_label = cls._meta.app_label
-            model_name = relation
-        except AttributeError:
-            # If it doesn't have a split it's actually a model class
+
+        if isinstance(relation, six.string_types):
+            try:
+                app_label, model_name = relation.split(".")
+            except ValueError:
+                # If we can't split, assume a model in current app
+                app_label = cls._meta.app_label
+                model_name = relation
+        else:
+            # it's actually a model class
             app_label = relation._meta.app_label
             model_name = relation._meta.object_name
 
@@ -495,7 +496,7 @@ class ForeignRelatedObjectsDescriptor(object):
                 except (AttributeError, KeyError):
                     db = self._db or router.db_for_read(self.model, instance=self.instance)
                     qs = super(RelatedManager, self).get_query_set().using(db).filter(**self.core_filters)
-                    qs._known_related_object = (rel_field.name, self.instance)
+                    qs._known_related_objects = {rel_field: {self.instance.pk: self.instance}}
                     return qs
 
             def get_prefetch_query_set(self, instances):
@@ -1002,6 +1003,31 @@ class ForeignKey(RelatedField, Field):
         )
         Field.__init__(self, **kwargs)
 
+    def get_path_info(self):
+        """
+        Get path from this field to the related model.
+        """
+        opts = self.rel.to._meta
+        target = self.rel.get_related_field()
+        from_opts = self.model._meta
+        return [PathInfo(self, target, from_opts, opts, self, False, True)], opts, target, self
+
+    def get_reverse_path_info(self):
+        """
+        Get path from the related model to this field's model.
+        """
+        opts = self.model._meta
+        from_field = self.rel.get_related_field()
+        from_opts = from_field.model._meta
+        pathinfos = [PathInfo(from_field, self, from_opts, opts, self, not self.unique, False)]
+        if from_field.model is self.model:
+            # Recursive foreign key to self.
+            target = opts.get_field_by_name(
+                self.rel.field_name)[0]
+        else:
+            target = opts.pk
+        return pathinfos, opts, target, self
+
     def validate(self, value, model_instance):
         if self.rel.parent_link:
             return
@@ -1195,6 +1221,30 @@ class ManyToManyField(RelatedField, Field):
 
         msg = _('Hold down "Control", or "Command" on a Mac, to select more than one.')
         self.help_text = string_concat(self.help_text, ' ', msg)
+
+    def _get_path_info(self, direct=False):
+        """
+        Called by both direct an indirect m2m traversal.
+        """
+        pathinfos = []
+        int_model = self.rel.through
+        linkfield1 = int_model._meta.get_field_by_name(self.m2m_field_name())[0]
+        linkfield2 = int_model._meta.get_field_by_name(self.m2m_reverse_field_name())[0]
+        if direct:
+            join1infos, _, _, _ = linkfield1.get_reverse_path_info()
+            join2infos, opts, target, final_field = linkfield2.get_path_info()
+        else:
+            join1infos, _, _, _ = linkfield2.get_reverse_path_info()
+            join2infos, opts, target, final_field = linkfield1.get_path_info()
+        pathinfos.extend(join1infos)
+        pathinfos.extend(join2infos)
+        return pathinfos, opts, target, final_field
+
+    def get_path_info(self):
+        return self._get_path_info(direct=True)
+
+    def get_reverse_path_info(self):
+        return self._get_path_info(direct=False)
 
     def get_choices_default(self):
         return Field.get_choices(self, include_blank=False)

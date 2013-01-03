@@ -170,7 +170,7 @@ subclass::
     ``fields`` option (for more complex layout needs see the
     :attr:`~ModelAdmin.fieldsets` option described in the next section). For
     example, you could define a simpler version of the admin form for the
-    ``django.contrib.flatpages.FlatPage`` model as follows::
+    :class:`django.contrib.flatpages.models.FlatPage` model as follows::
 
         class FlatPageAdmin(admin.ModelAdmin):
             fields = ('url', 'title', 'content')
@@ -179,8 +179,6 @@ subclass::
     will be displayed, sequentially, in the form. ``fields`` can contain
     values defined in :attr:`ModelAdmin.readonly_fields` to be displayed as
     read-only.
-
-    .. versionadded:: 1.4
 
     To display multiple fields on the same line, wrap those fields in their own
     tuple. In this example, the ``url`` and ``title`` fields will display on the
@@ -214,8 +212,8 @@ subclass::
     a dictionary of information about the fieldset, including a list of fields
     to be displayed in it.
 
-    A full example, taken from the :class:`django.contrib.flatpages.FlatPage`
-    model::
+    A full example, taken from the
+    :class:`django.contrib.flatpages.models.FlatPage` model::
 
         class FlatPageAdmin(admin.ModelAdmin):
             fieldsets = (
@@ -359,7 +357,7 @@ subclass::
 
     Note that the key in the dictionary is the actual field class, *not* a
     string. The value is another dictionary; these arguments will be passed to
-    :meth:`~django.forms.Field.__init__`. See :doc:`/ref/forms/api` for
+    the form field's ``__init__()`` method. See :doc:`/ref/forms/api` for
     details.
 
     .. warning::
@@ -570,8 +568,8 @@ subclass::
 
     .. image:: _images/users_changelist.png
 
-    ``list_filter`` should be a list of elements, where each element should be
-    of one of the following types:
+    ``list_filter`` should be a list or tuple of elements, where each element
+    should be of one of the following types:
 
     * a field name, where the specified field should be either a
       ``BooleanField``, ``CharField``, ``DateField``, ``DateTimeField``,
@@ -586,9 +584,7 @@ subclass::
           class PersonAdmin(UserAdmin):
               list_filter = ('company__name',)
 
-    .. versionadded:: 1.4
-
-    * a class inheriting from :mod:`django.contrib.admin.SimpleListFilter`,
+    * a class inheriting from ``django.contrib.admin.SimpleListFilter``,
       which you need to provide the ``title`` and ``parameter_name``
       attributes to and override the ``lookups`` and ``queryset`` methods,
       e.g.::
@@ -673,11 +669,9 @@ subclass::
                                     birthday__lte=date(1999, 12, 31)).exists():
                           yield ('90s', _('in the nineties'))
 
-    .. versionadded:: 1.4
-
     * a tuple, where the first element is a field name and the second
       element is a class inheriting from
-      :mod:`django.contrib.admin.FieldListFilter`, for example::
+      ``django.contrib.admin.FieldListFilter``, for example::
 
           from django.contrib.admin import BooleanFieldListFilter
 
@@ -691,8 +685,6 @@ subclass::
         The ``FieldListFilter`` API is considered internal and might be
         changed.
 
-    .. versionadded:: 1.4
-
     It is possible to specify a custom template for rendering a list filter::
 
         class FilterWithCustomTemplate(SimpleListFilter):
@@ -702,8 +694,6 @@ subclass::
     a concrete example.
 
 .. attribute:: ModelAdmin.list_max_show_all
-
-    .. versionadded:: 1.4
 
     Set ``list_max_show_all`` to control how many items can appear on a "Show
     all" admin change list page. The admin will display a "Show all" link on the
@@ -738,15 +728,9 @@ subclass::
     If this isn't provided, the Django admin will use the model's default
     ordering.
 
-    .. versionadded:: 1.4
-
     If you need to specify a dynamic order (for example depending on user or
     language) you can implement a :meth:`~ModelAdmin.get_ordering` method.
 
-    .. versionchanged:: 1.4
-
-    Django honors all elements in the list/tuple; before 1.4, only the first
-    was respected.
 
 .. attribute:: ModelAdmin.paginator
 
@@ -816,9 +800,11 @@ subclass::
 
     By default the admin shows all fields as editable. Any fields in this
     option (which should be a ``list`` or ``tuple``) will display its data
-    as-is and non-editable. Note that when specifying :attr:`ModelAdmin.fields`
-    or :attr:`ModelAdmin.fieldsets` the read-only fields must be present to be
-    shown (they are ignored otherwise).
+    as-is and non-editable; they are also excluded from the
+    :class:`~django.forms.ModelForm` used for creating and editing. Note that
+    when specifying :attr:`ModelAdmin.fields` or :attr:`ModelAdmin.fieldsets`
+    the read-only fields must be present to be shown (they are ignored
+    otherwise).
 
     If ``readonly_fields`` is used without defining explicit ordering through
     :attr:`ModelAdmin.fields` or :attr:`ModelAdmin.fieldsets` they will be
@@ -957,10 +943,9 @@ templates used by the :class:`ModelAdmin` views:
 
 .. attribute:: ModelAdmin.delete_selected_confirmation_template
 
-    Path to a custom template, used by the :meth:`delete_selected`
-    action method for displaying a confirmation page when deleting one
-    or more objects. See the :doc:`actions
-    documentation</ref/contrib/admin/actions>`.
+    Path to a custom template, used by the ``delete_selected`` action method
+    for displaying a confirmation page when deleting one or more objects. See
+    the :doc:`actions documentation</ref/contrib/admin/actions>`.
 
 .. attribute:: ModelAdmin.object_history_template
 
@@ -1015,8 +1000,6 @@ templates used by the :class:`ModelAdmin` views:
 
 .. method:: ModelAdmin.get_ordering(self, request)
 
-    .. versionadded:: 1.4
-
     The ``get_ordering`` method takes a``request`` as parameter and
     is expected to return a ``list`` or ``tuple`` for ordering similar
     to the :attr:`ordering` attribute. For example::
@@ -1030,8 +1013,6 @@ templates used by the :class:`ModelAdmin` views:
                     return ['name']
 
 .. method:: ModelAdmin.save_related(self, request, form, formsets, change)
-
-    .. versionadded:: 1.4
 
     The ``save_related`` method is given the ``HttpRequest``, the parent
     ``ModelForm`` instance, the list of inline formsets and a boolean value
@@ -1048,16 +1029,12 @@ templates used by the :class:`ModelAdmin` views:
 
 .. method:: ModelAdmin.get_prepopulated_fields(self, request, obj=None)
 
-    .. versionadded:: 1.4
-
     The ``get_prepopulated_fields`` method is given the ``HttpRequest`` and the
     ``obj`` being edited (or ``None`` on an add form) and is expected to return
     a ``dictionary``, as described above in the :attr:`ModelAdmin.prepopulated_fields`
     section.
 
 .. method:: ModelAdmin.get_list_display(self, request)
-
-    .. versionadded:: 1.4
 
     The ``get_list_display`` method is given the ``HttpRequest`` and is
     expected to return a ``list`` or ``tuple`` of field names that will be
@@ -1066,13 +1043,19 @@ templates used by the :class:`ModelAdmin` views:
 
 .. method:: ModelAdmin.get_list_display_links(self, request, list_display)
 
-    .. versionadded:: 1.4
-
     The ``get_list_display_links`` method is given the ``HttpRequest`` and
     the ``list`` or ``tuple`` returned by :meth:`ModelAdmin.get_list_display`.
     It is expected to return a ``list`` or ``tuple`` of field names on the
     changelist that will be linked to the change view, as described in the
     :attr:`ModelAdmin.list_display_links` section.
+
+.. method:: ModelAdmin.get_list_filter(self, request)
+
+    .. versionadded:: 1.5
+
+    The ``get_list_filter`` method is given the ``HttpRequest`` and is expected
+    to return the same kind of sequence type as for the
+    :attr:`~ModelAdmin.list_filter` attribute.
 
 .. method:: ModelAdmin.get_inline_instances(self, request, obj=None)
 
@@ -1124,9 +1107,8 @@ templates used by the :class:`ModelAdmin` views:
 
     Since this is usually not what you want, Django provides a convenience
     wrapper to check permissions and mark the view as non-cacheable. This
-    wrapper is :meth:`AdminSite.admin_view` (i.e.
-    ``self.admin_site.admin_view`` inside a ``ModelAdmin`` instance); use it
-    like so::
+    wrapper is ``AdminSite.admin_view()`` (i.e. ``self.admin_site.admin_view``
+    inside a ``ModelAdmin`` instance); use it like so::
 
         class MyModelAdmin(admin.ModelAdmin):
             def get_urls(self):
@@ -1146,7 +1128,7 @@ templates used by the :class:`ModelAdmin` views:
 
     If the page is cacheable, but you still want the permission check to be
     performed, you can pass a ``cacheable=True`` argument to
-    :meth:`AdminSite.admin_view`::
+    ``AdminSite.admin_view()``::
 
         (r'^my_view/$', self.admin_site.admin_view(self.my_view, cacheable=True))
 
@@ -1301,11 +1283,19 @@ templates used by the :class:`ModelAdmin` views:
                     return qs
                 return qs.filter(author=request.user)
 
-.. method:: ModelAdmin.message_user(request, message)
+.. method:: ModelAdmin.message_user(request, message, level=messages.INFO, extra_tags='', fail_silently=False)
 
-    Sends a message to the user. The default implementation creates a message
-    using the :mod:`django.contrib.messages` backend. See the
-    :ref:`custom ModelAdmin example <custom-admin-action>`.
+    Sends a message to the user using the :mod:`django.contrib.messages`
+    backend.  See the :ref:`custom ModelAdmin example <custom-admin-action>`.
+
+    .. versionadded:: 1.5
+
+    Keyword arguments allow you to change the message level, add extra CSS
+    tags, or fail silently if the ``contrib.messages`` framework is not
+    installed. These keyword arguments match those for
+    :func:`django.contrib.messages.add_message`, see that function's
+    documentation for more details. One difference is that the level may be
+    passed as a string label in addition to integer/constant.
 
 .. method:: ModelAdmin.get_paginator(queryset, per_page, orphans=0, allow_empty_first_page=True)
 
@@ -1322,10 +1312,6 @@ Other methods
 .. method:: ModelAdmin.change_view(self, request, object_id, form_url='', extra_context=None)
 
     Django view for the model instance edition page. See note below.
-
-    .. versionchanged:: 1.4
-
-    The ``form_url`` parameter was added.
 
 .. method:: ModelAdmin.changelist_view(self, request, extra_context=None)
 
@@ -1368,12 +1354,12 @@ provided some extra mapping data that would not otherwise be available::
             return super(MyModelAdmin, self).change_view(request, object_id,
                 form_url, extra_context=extra_context)
 
-.. versionadded:: 1.4
-
-These views now return :class:`~django.template.response.TemplateResponse`
+These views return :class:`~django.template.response.TemplateResponse`
 instances which allow you to easily customize the response data before
-rendering. For more details, see the
-:doc:`TemplateResponse documentation </ref/template-response>`.
+rendering. For more details, see the :doc:`TemplateResponse documentation
+</ref/template-response>`.
+
+.. _modeladmin-media-definitions:
 
 ``ModelAdmin`` media definitions
 --------------------------------
@@ -1494,9 +1480,6 @@ adds some of its own (the shared features are actually defined in the
 - :attr:`~InlineModelAdmin.raw_id_fields`
 - :meth:`~ModelAdmin.formfield_for_foreignkey`
 - :meth:`~ModelAdmin.formfield_for_manytomany`
-
-.. versionadded:: 1.4
-
 - :meth:`~ModelAdmin.has_add_permission`
 - :meth:`~ModelAdmin.has_change_permission`
 - :meth:`~ModelAdmin.has_delete_permission`
@@ -1805,31 +1788,32 @@ Because of the modular design of the admin templates, it is usually neither
 necessary nor advisable to replace an entire template. It is almost always
 better to override only the section of the template which you need to change.
 
-To continue the example above, we want to add a new link next to the ``History``
-tool for the ``Page`` model. After looking at ``change_form.html`` we determine
-that we only need to override the ``object-tools`` block. Therefore here is our
-new ``change_form.html`` :
+To continue the example above, we want to add a new link next to the
+``History`` tool for the ``Page`` model. After looking at ``change_form.html``
+we determine that we only need to override the ``object-tools-items`` block.
+Therefore here is our new ``change_form.html`` :
 
 .. code-block:: html+django
 
     {% extends "admin/change_form.html" %}
-    {% load i18n %}
-    {% block object-tools %}
-    {% if change %}{% if not is_popup %}
-      <ul class="object-tools">
-        <li><a href="history/" class="historylink">{% trans "History" %}</a></li>
-        <li><a href="mylink/" class="historylink">My Link</a></li>
+    {% load i18n admin_urls %}
+    {% block object-tools-items %}
+        <li>
+            <a href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}" class="historylink">{% trans "History" %}</a>
+        </li>
+        <li>
+            <a href="mylink/" class="historylink">My Link</a>
+        </li>
         {% if has_absolute_url %}
-            <li><a href="../../../r/{{ content_type_id }}/{{ object_id }}/" class="viewsitelink">
-                {% trans "View on site" %}</a>
+            <li>
+                <a href="{% url 'admin:view_on_site' content_type_id original.pk %}" class="viewsitelink">{% trans "View on site" %}</a>
             </li>
         {% endif%}
-      </ul>
-    {% endif %}{% endif %}
     {% endblock %}
 
 And that's it! If we placed this file in the ``templates/admin/my_app``
-directory, our link would appear on every model's change form.
+directory, our link would appear on the change form for all models within
+my_app.
 
 Templates which may be overridden per app or model
 --------------------------------------------------
@@ -2023,8 +2007,6 @@ your URLconf. Specifically, add these four patterns:
 the URLs starting with ``^admin/`` before the line that includes the admin app
 itself).
 
-.. versionchanged:: 1.4
-
 The presence of the ``admin_password_reset`` named URL will cause a "forgotten
 your password?" link to appear on the default admin log-in page under the
 password box.
@@ -2087,8 +2069,6 @@ if you specifically wanted the admin view from the admin instance named
 
 For more details, see the documentation on :ref:`reversing namespaced URLs
 <topics-http-reversing-url-namespaces>`.
-
-.. versionadded:: 1.4
 
 To allow easier reversing of the admin urls in templates, Django provides an
 ``admin_urlname`` filter which takes an action as argument:

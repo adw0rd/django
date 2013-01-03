@@ -133,7 +133,7 @@ class UserAdmin(admin.ModelAdmin):
         adminForm = admin.helpers.AdminForm(form, fieldsets, {})
 
         context = {
-            'title': _('Change password: %s') % escape(user.username),
+            'title': _('Change password: %s') % escape(user.get_username()),
             'adminForm': adminForm,
             'form_url': form_url,
             'form': form,
@@ -148,12 +148,12 @@ class UserAdmin(admin.ModelAdmin):
             'save_as': False,
             'show_save': True,
         }
-        return TemplateResponse(request, [
+        return TemplateResponse(request,
             self.change_user_password_template or
-            'admin/auth/user/change_password.html'
-        ], context, current_app=self.admin_site.name)
+            'admin/auth/user/change_password.html',
+            context, current_app=self.admin_site.name)
 
-    def response_add(self, request, obj, **kwargs):
+    def response_add(self, request, obj, post_url_continue=None):
         """
         Determines the HttpResponse for the add_view stage. It mostly defers to
         its superclass implementation but is customized because the User model
@@ -166,7 +166,8 @@ class UserAdmin(admin.ModelAdmin):
         # * We are adding a user in a popup
         if '_addanother' not in request.POST and '_popup' not in request.POST:
             request.POST['_continue'] = 1
-        return super(UserAdmin, self).response_add(request, obj, **kwargs)
+        return super(UserAdmin, self).response_add(request, obj,
+                                                   post_url_continue)
 
 admin.site.register(Group, GroupAdmin)
 admin.site.register(User, UserAdmin)

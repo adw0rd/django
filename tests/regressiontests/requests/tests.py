@@ -11,6 +11,7 @@ from django.core.handlers.wsgi import WSGIRequest, LimitedStream
 from django.http import HttpRequest, HttpResponse, parse_cookie, build_request_repr, UnreadablePostError
 from django.test.client import FakePayload
 from django.test.utils import override_settings, str_prefix
+from django.utils import six
 from django.utils import unittest
 from django.utils.http import cookie_date, urlencode
 from django.utils.timezone import utc
@@ -56,6 +57,16 @@ class RequestsTests(unittest.TestCase):
         self.assertEqual(build_request_repr(request), repr(request))
         self.assertEqual(build_request_repr(request, path_override='/otherpath/', GET_override={'a': 'b'}, POST_override={'c': 'd'}, COOKIES_override={'e': 'f'}, META_override={'g': 'h'}),
                          str_prefix("<WSGIRequest\npath:/otherpath/,\nGET:{%(_)s'a': %(_)s'b'},\nPOST:{%(_)s'c': %(_)s'd'},\nCOOKIES:{%(_)s'e': %(_)s'f'},\nMETA:{%(_)s'g': %(_)s'h'}>"))
+
+    def test_wsgirequest_path_info(self):
+        def wsgi_str(path_info):
+            path_info = path_info.encode('utf-8')           # Actual URL sent by the browser (bytestring)
+            if six.PY3:
+                path_info = path_info.decode('iso-8859-1')  # Value in the WSGI environ dict (native string)
+            return path_info
+        # Regression for #19468
+        request = WSGIRequest({'PATH_INFO': wsgi_str("/سلام/"), 'REQUEST_METHOD': 'get', 'wsgi.input': BytesIO(b'')})
+        self.assertEqual(request.path, "/سلام/")
 
     def test_parse_cookie(self):
         self.assertEqual(parse_cookie('invalid@key=true'), {})
@@ -116,13 +127,15 @@ class RequestsTests(unittest.TestCase):
             '12.34.56.78:443',
             '[2001:19f0:feee::dead:beef:cafe]',
             '[2001:19f0:feee::dead:beef:cafe]:8080',
+            'xn--4ca9at.com', # Punnycode for öäü.com
         ]
 
         poisoned_hosts = [
             'example.com@evil.tld',
             'example.com:dr.frankenstein@evil.tld',
-            'example.com:someone@somestie.com:80',
-            'example.com:80/badpath'
+            'example.com:dr.frankenstein@evil.tld:80',
+            'example.com:80/badpath',
+            'example.com: recovermypassword.com',
         ]
 
         for host in legit_hosts:
@@ -186,13 +199,15 @@ class RequestsTests(unittest.TestCase):
             '12.34.56.78:443',
             '[2001:19f0:feee::dead:beef:cafe]',
             '[2001:19f0:feee::dead:beef:cafe]:8080',
+            'xn--4ca9at.com', # Punnycode for öäü.com
         ]
 
         poisoned_hosts = [
             'example.com@evil.tld',
             'example.com:dr.frankenstein@evil.tld',
             'example.com:dr.frankenstein@evil.tld:80',
-            'example.com:80/badpath'
+            'example.com:80/badpath',
+            'example.com: recovermypassword.com',
         ]
 
         for host in legit_hosts:
@@ -492,20 +507,6 @@ class RequestsTests(unittest.TestCase):
         self.assertEqual(request.read(13), b'--boundary\r\nC')
         self.assertEqual(request.POST, {'name': ['value']})
 
-    def test_raw_post_data_returns_body(self):
-        """
-        HttpRequest.raw_post_body should be the same as HttpRequest.body
-        """
-        payload = FakePayload('Hello There!')
-        request = WSGIRequest({
-            'REQUEST_METHOD': 'POST',
-            'CONTENT_LENGTH': len(payload),
-            'wsgi.input': payload,
-        })
-
-        with warnings.catch_warnings(record=True):
-            self.assertEqual(request.body, request.raw_post_data)
-
     def test_POST_connection_error(self):
         """
         If wsgi.input.read() raises an exception while trying to read() the
@@ -521,8 +522,5 @@ class RequestsTests(unittest.TestCase):
                                'CONTENT_LENGTH': len(payload),
                                'wsgi.input': ExplodingBytesIO(payload)})
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            with self.assertRaises(UnreadablePostError):
-                request.raw_post_data
-            self.assertEqual(len(w), 1)
+        with self.assertRaises(UnreadablePostError):
+            request.body

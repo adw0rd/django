@@ -416,6 +416,11 @@ class Model(six.with_metaclass(ModelBase, object)):
 
     def __str__(self):
         if not six.PY3 and hasattr(self, '__unicode__'):
+            if type(self).__unicode__ == Model.__str__:
+                klass_name = type(self).__name__
+                raise RuntimeError("%s.__unicode__ is aliased to __str__. Did"
+                                   " you apply @python_2_unicode_compatible"
+                                   " without defining __str__?" % klass_name)
             return force_text(self).encode('utf-8')
         return '%s object' % self.__class__.__name__
 
@@ -578,6 +583,15 @@ class Model(six.with_metaclass(ModelBase, object)):
 
                 if field:
                     setattr(self, field.attname, self._get_pk_val(parent._meta))
+                    # Since we didn't have an instance of the parent handy, we
+                    # set attname directly, bypassing the descriptor.
+                    # Invalidate the related object cache, in case it's been
+                    # accidentally populated. A fresh instance will be
+                    # re-built from the database if necessary.
+                    cache_name = field.get_cache_name()
+                    if hasattr(self, cache_name):
+                        delattr(self, cache_name)
+
             if meta.proxy:
                 return
 

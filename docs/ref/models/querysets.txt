@@ -378,16 +378,12 @@ query spans multiple tables, it's possible to get duplicate results when a
     :meth:`values()` together, be careful when ordering by fields not in the
     :meth:`values()` call.
 
-.. versionadded:: 1.4
-
-As of Django 1.4, you can pass positional arguments (``*fields``) in order to
-specify the names of fields to which the ``DISTINCT`` should apply. This
-translates to a ``SELECT DISTINCT ON`` SQL query.
-
-Here's the difference. For a normal ``distinct()`` call, the database compares
-*each* field in each row when determining which rows are distinct. For a
-``distinct()`` call with specified field names, the database will only compare
-the specified field names.
+You can pass positional arguments (``*fields``) in order to specify the names
+of fields to which the ``DISTINCT`` should apply. This translates to a
+``SELECT DISTINCT ON`` SQL query. Here's the difference. For a normal
+``distinct()`` call, the database compares *each* field in each row when
+determining which rows are distinct. For a ``distinct()`` call with specified
+field names, the database will only compare the specified field names.
 
 .. note::
     This ability to specify field names is only available in PostgreSQL.
@@ -678,7 +674,7 @@ have ``null=True``.
 Usually, using ``select_related()`` can vastly improve performance because your
 app can avoid many database calls. However, there are times you are only
 interested in specific related models, or have deeply nested sets of
-relationships, and in these cases ``select_related()`` can can be optimized by
+relationships, and in these cases ``select_related()`` can be optimized by
 explicitly passing the related field names you are interested in. Only
 the specified relations will be followed.
 
@@ -739,8 +735,6 @@ prefetch_related
 ~~~~~~~~~~~~~~~~
 
 .. method:: prefetch_related(*lookups)
-
-.. versionadded:: 1.4
 
 Returns a ``QuerySet`` that will automatically retrieve, in a single batch,
 related objects for each of the specified lookups.
@@ -1112,9 +1106,9 @@ one, doing so will result in an error.
 
 .. note::
 
-    When calling :meth:`~Model.save()` for instances with deferred fields,
-    only the loaded fields will be saved. See :meth:`~Model.save()` for more
-    details.
+    When calling :meth:`~django.db.models.Model.save()` for instances with
+    deferred fields, only the loaded fields will be saved. See
+    :meth:`~django.db.models.Model.save()` for more details.
 
 
 only
@@ -1164,9 +1158,9 @@ using :meth:`select_related` is an error as well.
 
 .. note::
 
-    When calling :meth:`~Model.save()` for instances with deferred fields,
-    only the loaded fields will be saved. See :meth:`~Model.save()` for more
-    details.
+    When calling :meth:`~django.db.models.Model.save()` for instances with
+    deferred fields, only the loaded fields will be saved. See
+    :meth:`~django.db.models.Model.save()` for more details.
 
 using
 ~~~~~
@@ -1190,8 +1184,6 @@ select_for_update
 ~~~~~~~~~~~~~~~~~
 
 .. method:: select_for_update(nowait=False)
-
-.. versionadded:: 1.4
 
 Returns a queryset that will lock rows until the end of the transaction,
 generating a ``SELECT ... FOR UPDATE`` SQL statement on supported databases.
@@ -1248,7 +1240,7 @@ the format described in `Field lookups`_.
 
 ``get()`` raises :exc:`~django.core.exceptions.MultipleObjectsReturned` if more
 than one object was found. The
-:exc:`~django.core.excpetions.MultipleObjectsReturned` exception is an
+:exc:`~django.core.exceptions.MultipleObjectsReturned` exception is an
 attribute of the model class.
 
 ``get()`` raises a :exc:`~django.core.exceptions.DoesNotExist` exception if an
@@ -1321,10 +1313,12 @@ The above example can be rewritten using ``get_or_create()`` like so::
 
 Any keyword arguments passed to ``get_or_create()`` — *except* an optional one
 called ``defaults`` — will be used in a :meth:`get()` call. If an object is
-found, ``get_or_create()`` returns a tuple of that object and ``False``. If an
-object is *not* found, ``get_or_create()`` will instantiate and save a new
-object, returning a tuple of the new object and ``True``. The new object will
-be created roughly according to this algorithm::
+found, ``get_or_create()`` returns a tuple of that object and ``False``. If
+multiple objects are found, ``get_or_create`` raises
+:exc:`~django.core.exceptions.MultipleObjectsReturned`. If an object is *not*
+found, ``get_or_create()`` will instantiate and save a new object, returning a
+tuple of the new object and ``True``. The new object will be created roughly
+according to this algorithm::
 
     defaults = kwargs.pop('defaults', {})
     params = dict([(k, v) for k, v in kwargs.items() if '__' not in k])
@@ -1365,8 +1359,6 @@ bulk_create
 ~~~~~~~~~~~
 
 .. method:: bulk_create(objs, batch_size=None)
-
-.. versionadded:: 1.4
 
 This method inserts the provided list of objects into the database in an
 efficient manner (generally only 1 query, no matter how many objects there
@@ -1635,7 +1627,7 @@ Finally, realize that ``update()`` does an update at the SQL level and, thus,
 does not call any ``save()`` methods on your models, nor does it emit the
 :attr:`~django.db.models.signals.pre_save` or
 :attr:`~django.db.models.signals.post_save` signals (which are a consequence of
-calling :meth:`Model.save() <~django.db.models.Model.save()>`). If you want to
+calling :meth:`Model.save() <django.db.models.Model.save>`). If you want to
 update a bunch of records for a model that has a custom
 :meth:`~django.db.models.Model.save()` method, loop over them and call
 :meth:`~django.db.models.Model.save()`, like this::

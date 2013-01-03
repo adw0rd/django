@@ -6,6 +6,7 @@ variable, and then from django.conf.global_settings; see the global settings fil
 a list of all possible variables.
 """
 
+import logging
 import os
 import time     # Needed for Windows
 import warnings
@@ -55,6 +56,15 @@ class LazySettings(LazyObject):
         """
         Setup logging from LOGGING_CONFIG and LOGGING settings.
         """
+        try:
+            # Route warnings through python logging
+            logging.captureWarnings(True)
+            # Allow DeprecationWarnings through the warnings filters
+            warnings.simplefilter("default", DeprecationWarning)
+        except AttributeError:
+            # No captureWarnings on Python 2.6, DeprecationWarnings are on anyway
+            pass
+
         if self.LOGGING_CONFIG:
             from django.utils.log import DEFAULT_LOGGING
             # First find the logging configuration function ...
@@ -64,11 +74,8 @@ class LazySettings(LazyObject):
 
             logging_config_func(DEFAULT_LOGGING)
 
+            # ... then invoke it with the logging settings
             if self.LOGGING:
-                # Backwards-compatibility shim for #16288 fix
-                compat_patch_logging_config(self.LOGGING)
-
-                # ... then invoke it with the logging settings
                 logging_config_func(self.LOGGING)
 
     def configure(self, default_settings=global_settings, **options):
@@ -83,6 +90,7 @@ class LazySettings(LazyObject):
         for name, value in options.items():
             setattr(holder, name, value)
         self._wrapped = holder
+        self._configure_logging()
 
     @property
     def configured(self):
@@ -99,9 +107,6 @@ class BaseSettings(object):
     def __setattr__(self, name, value):
         if name in ("MEDIA_URL", "STATIC_URL") and value and not value.endswith('/'):
             raise ImproperlyConfigured("If set, %s must end with a slash" % name)
-        elif name == "ADMIN_MEDIA_PREFIX":
-            warnings.warn("The ADMIN_MEDIA_PREFIX setting has been removed; "
-                          "use STATIC_URL instead.", DeprecationWarning)
         elif name == "ALLOWED_INCLUDE_ROOTS" and isinstance(value, six.string_types):
             raise ValueError("The ALLOWED_INCLUDE_ROOTS setting must be set "
                 "to a tuple, not a string.")
@@ -134,7 +139,7 @@ class Settings(BaseSettings):
                         isinstance(setting_value, six.string_types):
                     warnings.warn("The %s setting must be a tuple. Please fix your "
                                   "settings, as auto-correction is now deprecated." % setting,
-                        PendingDeprecationWarning)
+                                  DeprecationWarning, stacklevel=2)
                     setting_value = (setting_value,) # In case the user forgot the comma.
                 setattr(self, setting, setting_value)
 
@@ -187,37 +192,3 @@ class UserSettingsHolder(BaseSettings):
         return list(self.__dict__) + dir(self.default_settings)
 
 settings = LazySettings()
-
-
-
-def compat_patch_logging_config(logging_config):
-    """
-    Backwards-compatibility shim for #16288 fix. Takes initial value of
-    ``LOGGING`` setting and patches it in-place (issuing deprecation warning)
-    if "mail_admins" logging handler is configured but has no filters.
-
-    """
-    #  Shim only if LOGGING["handlers"]["mail_admins"] exists,
-    #  but has no "filters" key
-    if "filters" not in logging_config.get(
-        "handlers", {}).get(
-        "mail_admins", {"filters": []}):
-
-        warnings.warn(
-            "You have no filters defined on the 'mail_admins' logging "
-            "handler: adding implicit debug-false-only filter. "
-            "See http://docs.djangoproject.com/en/dev/releases/1.4/"
-            "#request-exceptions-are-now-always-logged",
-            DeprecationWarning)
-
-        filter_name = "require_debug_false"
-
-        filters = logging_config.setdefault("filters", {})
-        while filter_name in filters:
-            filter_name = filter_name + "_"
-
-        filters[filter_name] = {
-            "()": "django.utils.log.RequireDebugFalse",
-        }
-
-        logging_config["handlers"]["mail_admins"]["filters"] = [filter_name]

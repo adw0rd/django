@@ -15,14 +15,14 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.test import TestCase
 from django.test.utils import override_settings
-from django.utils.encoding import smart_text
+from django.utils.encoding import force_text
 from django.utils.functional import empty
-from django.utils._os import rmtree_errorhandler
+from django.utils._os import rmtree_errorhandler, upath
 from django.utils import six
 
 from django.contrib.staticfiles import finders, storage
 
-TEST_ROOT = os.path.dirname(__file__)
+TEST_ROOT = os.path.dirname(upath(__file__))
 TEST_SETTINGS = {
     'DEBUG': True,
     'MEDIA_URL': '/media/',
@@ -58,9 +58,9 @@ class BaseStaticFilesTestCase(object):
         testfiles_path = os.path.join(TEST_ROOT, 'apps', 'test', 'static', 'test')
         # To make sure SVN doesn't hangs itself with the non-ASCII characters
         # during checkout, we actually create one file dynamically.
-        self._nonascii_filepath = os.path.join(testfiles_path, 'fi\u015fier.txt')
+        self._nonascii_filepath = os.path.join(testfiles_path, '\u2297.txt')
         with codecs.open(self._nonascii_filepath, 'w', 'utf-8') as f:
-            f.write("fi\u015fier in the app dir")
+            f.write("\u2297 in the app dir")
         # And also create the stupid hidden file to dwarf the setup.py's
         # package data handling.
         self._hidden_filepath = os.path.join(testfiles_path, '.hidden')
@@ -77,7 +77,7 @@ class BaseStaticFilesTestCase(object):
         os.unlink(self._backup_filepath)
 
     def assertFileContains(self, filepath, text):
-        self.assertIn(text, self._get_file(smart_text(filepath)),
+        self.assertIn(text, self._get_file(force_text(filepath)),
                         "'%s' not in '%s'" % (text, filepath))
 
     def assertFileNotFound(self, filepath):
@@ -177,7 +177,7 @@ class TestDefaults(object):
         """
         Can find a file with non-ASCII character in an app static/ directory.
         """
-        self.assertFileContains('test/fişier.txt', 'fişier in the app dir')
+        self.assertFileContains('test/⊗.txt', '⊗ in the app dir')
 
     def test_camelcase_filenames(self):
         """
@@ -195,7 +195,7 @@ class TestFindStatic(CollectionTestCase, TestDefaults):
         call_command('findstatic', filepath, all=False, verbosity=0, stdout=out)
         out.seek(0)
         lines = [l.strip() for l in out.readlines()]
-        with codecs.open(smart_text(lines[1].strip()), "r", "utf-8") as f:
+        with codecs.open(force_text(lines[1].strip()), "r", "utf-8") as f:
             return f.read()
 
     def test_all_files(self):
@@ -207,8 +207,8 @@ class TestFindStatic(CollectionTestCase, TestDefaults):
         out.seek(0)
         lines = [l.strip() for l in out.readlines()]
         self.assertEqual(len(lines), 3)  # three because there is also the "Found <file> here" line
-        self.assertIn('project', lines[1])
-        self.assertIn('apps', lines[2])
+        self.assertIn('project', force_text(lines[1]))
+        self.assertIn('apps', force_text(lines[2]))
 
 
 class TestCollection(CollectionTestCase, TestDefaults):

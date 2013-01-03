@@ -10,6 +10,7 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models.query import EmptyQuerySet
 from django.forms.models import model_to_dict
+from django.utils._os import upath
 from django.utils.unittest import skipUnless
 from django.test import TestCase
 from django.utils import six
@@ -17,8 +18,9 @@ from django.utils import six
 from .models import (Article, ArticleStatus, BetterWriter, BigInt, Book,
     Category, CommaSeparatedInteger, CustomFieldForExclusionModel, DerivedBook,
     DerivedPost, ExplicitPK, FlexibleDatePost, ImprovedArticle,
-    ImprovedArticleWithParentLink, Inventory, PhoneNumber, Post, Price,
-    Product, TextFile, Writer, WriterProfile, test_images)
+    ImprovedArticleWithParentLink, Inventory, Post, Price,
+    Product, TextFile, Writer, WriterProfile, Colour, ColourfulItem,
+    test_images)
 
 if test_images:
     from .models import ImageFile, OptionalImageFile
@@ -147,10 +149,6 @@ class WriterProfileForm(forms.ModelForm):
     class Meta:
         model = WriterProfile
 
-class PhoneNumberForm(forms.ModelForm):
-    class Meta:
-        model = PhoneNumber
-
 class TextFileForm(forms.ModelForm):
     class Meta:
         model = TextFile
@@ -166,7 +164,7 @@ class ModelFormWithMedia(forms.ModelForm):
             'all': ('/some/form/css',)
         }
     class Meta:
-        model = PhoneNumber
+        model = TextFile
 
 class CommaSeparatedIntegerForm(forms.ModelForm):
    class Meta:
@@ -176,6 +174,10 @@ class PriceFormWithoutQuantity(forms.ModelForm):
     class Meta:
         model = Price
         exclude = ('quantity',)
+
+class ColourfulItemForm(forms.ModelForm):
+    class Meta:
+        model = ColourfulItem
 
 
 class ModelFormBaseTest(TestCase):
@@ -560,6 +562,42 @@ class UniqueTest(TestCase):
         form = FlexDatePostForm({'subtitle': "Finally", "title": "Django 1.0 is released",
             "slug": "Django 1.0"}, instance=p)
         self.assertTrue(form.is_valid())
+
+class ModelToDictTests(TestCase):
+    """
+    Tests for forms.models.model_to_dict
+    """
+    def test_model_to_dict_many_to_many(self):
+        categories=[
+            Category(name='TestName1', slug='TestName1', url='url1'),
+            Category(name='TestName2', slug='TestName2', url='url2'),
+            Category(name='TestName3', slug='TestName3', url='url3')
+        ]
+        for c in categories:
+            c.save()
+        writer = Writer(name='Test writer')
+        writer.save()
+
+        art = Article(
+            headline='Test article',
+            slug='test-article',
+            pub_date=datetime.date(1988, 1, 4),
+            writer=writer,
+            article='Hello.'
+        )
+        art.save()
+        for c in categories:
+            art.categories.add(c)
+        art.save()
+
+        with self.assertNumQueries(1):
+            d = model_to_dict(art)
+
+        #Ensure all many-to-many categories appear in model_to_dict
+        for c in categories:
+            self.assertIn(c.pk, d['categories'])
+        #Ensure many-to-many relation appears as a list
+        self.assertIsInstance(d['categories'], list)
 
 class OldFormForXTests(TestCase):
     def test_base_form(self):
@@ -1011,9 +1049,12 @@ class OldFormForXTests(TestCase):
         self.assertQuerysetEqual(f.clean([c1.id]), ["Entertainment"])
         self.assertQuerysetEqual(f.clean([c2.id]), ["It's a test"])
         self.assertQuerysetEqual(f.clean([str(c1.id)]), ["Entertainment"])
-        self.assertQuerysetEqual(f.clean([str(c1.id), str(c2.id)]), ["Entertainment", "It's a test"])
-        self.assertQuerysetEqual(f.clean([c1.id, str(c2.id)]), ["Entertainment", "It's a test"])
-        self.assertQuerysetEqual(f.clean((c1.id, str(c2.id))), ["Entertainment", "It's a test"])
+        self.assertQuerysetEqual(f.clean([str(c1.id), str(c2.id)]), ["Entertainment", "It's a test"],
+                                 ordered=False)
+        self.assertQuerysetEqual(f.clean([c1.id, str(c2.id)]), ["Entertainment", "It's a test"],
+                                 ordered=False)
+        self.assertQuerysetEqual(f.clean((c1.id, str(c2.id))), ["Entertainment", "It's a test"],
+                                 ordered=False)
         with self.assertRaises(ValidationError):
             f.clean(['100'])
         with self.assertRaises(ValidationError):
@@ -1024,7 +1065,10 @@ class OldFormForXTests(TestCase):
         # Add a Category object *after* the ModelMultipleChoiceField has already been
         # instantiated. This proves clean() checks the database during clean() rather
         # than caching it at time of instantiation.
-        c6 = Category.objects.create(id=6, name='Sixth', url='6th')
+        # Note, we are using an id of 1006 here since tests that run before
+        # this may create categories with primary keys up to 6. Use
+        # a number that is will not conflict.
+        c6 = Category.objects.create(id=1006, name='Sixth', url='6th')
         self.assertEqual(c6.name, 'Sixth')
         self.assertQuerysetEqual(f.clean([c6.id]), ["Sixth"])
 
@@ -1108,12 +1152,6 @@ class OldFormForXTests(TestCase):
 <option value="%s">Mike Royko</option>
 </select></p>
 <p><label for="id_age">Age:</label> <input type="text" name="age" value="65" id="id_age" /></p>''' % (w_woodward.pk, w_bernstein.pk, bw.pk, w_royko.pk))
-
-    def test_phone_number_field(self):
-        f = PhoneNumberForm({'phone': '(312) 555-1212', 'description': 'Assistance'})
-        self.assertEqual(f.is_valid(), True)
-        self.assertEqual(f.cleaned_data['phone'], '312-555-1212')
-        self.assertEqual(f.cleaned_data['description'], 'Assistance')
 
     def test_file_field(self):
         # Test conditions when files is either not given or empty.
@@ -1243,9 +1281,9 @@ class OldFormForXTests(TestCase):
         # it comes to validation. This specifically tests that #6302 is fixed for
         # both file fields and image fields.
 
-        with open(os.path.join(os.path.dirname(__file__), "test.png"), 'rb') as fp:
+        with open(os.path.join(os.path.dirname(upath(__file__)), "test.png"), 'rb') as fp:
             image_data = fp.read()
-        with open(os.path.join(os.path.dirname(__file__), "test2.png"), 'rb') as fp:
+        with open(os.path.join(os.path.dirname(upath(__file__)), "test2.png"), 'rb') as fp:
             image_data2 = fp.read()
 
         f = ImageFileForm(
@@ -1485,3 +1523,15 @@ class OldFormForXTests(TestCase):
                          ['name'])
         self.assertHTMLEqual(six.text_type(CustomFieldForExclusionForm()),
                          '''<tr><th><label for="id_name">Name:</label></th><td><input id="id_name" type="text" name="name" maxlength="10" /></td></tr>''')
+
+    def test_iterable_model_m2m(self) :
+        colour = Colour.objects.create(name='Blue')
+        form = ColourfulItemForm()
+        self.maxDiff = 1024
+        self.assertHTMLEqual(
+            form.as_p(),
+            """<p><label for="id_name">Name:</label> <input id="id_name" type="text" name="name" maxlength="50" /></p>
+        <p><label for="id_colours">Colours:</label> <select multiple="multiple" name="colours" id="id_colours">
+        <option value="%(blue_pk)s">Blue</option>
+        </select> <span class="helptext"> Hold down "Control", or "Command" on a Mac, to select more than one.</span></p>"""
+            % {'blue_pk': colour.pk})

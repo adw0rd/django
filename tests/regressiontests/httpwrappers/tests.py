@@ -14,6 +14,7 @@ from django.http import (QueryDict, HttpResponse, HttpResponseRedirect,
                          parse_cookie)
 from django.test import TestCase
 from django.utils.encoding import smart_str
+from django.utils._os import upath
 from django.utils import six
 from django.utils import unittest
 
@@ -129,15 +130,14 @@ class QueryDictTests(unittest.TestCase):
             self.assertTrue(q.has_key('foo'))
         self.assertTrue('foo' in q)
 
-        self.assertEqual(sorted(list(six.iteritems(q))),
-                         [('foo', 'another'), ('name', 'john')])
-        self.assertEqual(sorted(list(six.iterlists(q))),
-                         [('foo', ['bar', 'baz', 'another']), ('name', ['john'])])
-        self.assertEqual(sorted(list(six.iterkeys(q))),
-                         ['foo', 'name'])
-        self.assertEqual(sorted(list(six.itervalues(q))),
-                         ['another', 'john'])
-        self.assertEqual(len(q), 2)
+        self.assertListEqual(sorted(list(six.iteritems(q))),
+                             [('foo', 'another'), ('name', 'john')])
+        self.assertListEqual(sorted(list(six.iterlists(q))),
+                             [('foo', ['bar', 'baz', 'another']), ('name', ['john'])])
+        self.assertListEqual(sorted(list(six.iterkeys(q))),
+                             ['foo', 'name'])
+        self.assertListEqual(sorted(list(six.itervalues(q))),
+                             ['another', 'john'])
 
         q.update({'foo': 'hello'})
         self.assertEqual(q['foo'], 'hello')
@@ -326,13 +326,13 @@ class HttpResponseTests(unittest.TestCase):
         r = HttpResponse()
         r.content = ['1', '2', 3, '\u079e']
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", PendingDeprecationWarning)
+            warnings.simplefilter("always", DeprecationWarning)
             my_iter = iter(r)
-            self.assertEqual(w[0].category, PendingDeprecationWarning)
+            self.assertEqual(w[0].category, DeprecationWarning)
         with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", PendingDeprecationWarning)
+            warnings.simplefilter("always", DeprecationWarning)
             result = list(my_iter)
-            self.assertEqual(w[0].category, PendingDeprecationWarning)
+            self.assertEqual(w[0].category, DeprecationWarning)
         #'\xde\x9e' == unichr(1950).encode('utf-8')
         self.assertEqual(result, [b'1', b'2', b'3', b'\xde\x9e'])
         self.assertEqual(r.content, b'123\xde\x9e')
@@ -360,7 +360,7 @@ class HttpResponseTests(unittest.TestCase):
         # XXX change this when the deprecation completes in HttpResponse
         r = HttpResponse(iter(['hello', 'world']))
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", PendingDeprecationWarning)
+            warnings.simplefilter("ignore", DeprecationWarning)
             self.assertEqual(b''.join(r), b'helloworld')
         self.assertEqual(r.content, b'')                # not the expected result!
 
@@ -483,7 +483,7 @@ class StreamingHttpResponseTests(TestCase):
 
 class FileCloseTests(TestCase):
     def test_response(self):
-        filename = os.path.join(os.path.dirname(__file__), 'abc.txt')
+        filename = os.path.join(os.path.dirname(upath(__file__)), 'abc.txt')
 
         # file isn't closed until we close the response.
         file1 = open(filename)
@@ -497,7 +497,7 @@ class FileCloseTests(TestCase):
         r = HttpResponse(file1)
         self.assertFalse(file1.closed)
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", PendingDeprecationWarning)
+            warnings.simplefilter("ignore", DeprecationWarning)
             list(r)
         self.assertFalse(file1.closed)
         r.close()
@@ -516,7 +516,7 @@ class FileCloseTests(TestCase):
         self.assertTrue(file2.closed)
 
     def test_streaming_response(self):
-        filename = os.path.join(os.path.dirname(__file__), 'abc.txt')
+        filename = os.path.join(os.path.dirname(upath(__file__)), 'abc.txt')
 
         # file isn't closed until we close the response.
         file1 = open(filename)

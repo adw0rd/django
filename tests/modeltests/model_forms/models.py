@@ -91,15 +91,6 @@ class WriterProfile(models.Model):
     def __str__(self):
         return "%s is %s" % (self.writer, self.age)
 
-from django.contrib.localflavor.us.models import PhoneNumberField
-@python_2_unicode_compatible
-class PhoneNumber(models.Model):
-    phone = PhoneNumberField()
-    description = models.CharField(max_length=20)
-
-    def __str__(self):
-        return self.phone
-
 @python_2_unicode_compatible
 class TextFile(models.Model):
     description = models.CharField(max_length=20)
@@ -272,3 +263,18 @@ class FlexibleDatePost(models.Model):
     slug = models.CharField(max_length=50, unique_for_year='posted', blank=True)
     subtitle = models.CharField(max_length=50, unique_for_month='posted', blank=True)
     posted = models.DateField(blank=True, null=True)
+
+@python_2_unicode_compatible
+class Colour(models.Model):
+    name = models.CharField(max_length=50)
+
+    def __iter__(self):
+        for number in xrange(5):
+            yield number
+
+    def __str__(self):
+        return self.name
+
+class ColourfulItem(models.Model):
+    name = models.CharField(max_length=50)
+    colours = models.ManyToManyField(Colour)

@@ -107,8 +107,8 @@ AUTHENTICATION_BACKENDS
 Default: ``('django.contrib.auth.backends.ModelBackend',)``
 
 A tuple of authentication backend classes (as strings) to use when attempting to
-authenticate a user. See the :doc:`authentication backends documentation
-</ref/authbackends>` for details.
+authenticate a user. See the :ref:`authentication backends documentation
+<authentication-backends>` for details.
 
 .. setting:: AUTH_USER_MODEL
 
@@ -159,7 +159,7 @@ The cache backend to use. The built-in cache backends are:
 * ``'django.core.cache.backends.memcached.PyLibMCCache'``
 
 You can use a cache backend that doesn't ship with Django by setting
-:setting:`BACKEND <CACHE-BACKEND>` to a fully-qualified path of a cache
+:setting:`BACKEND <CACHES-BACKEND>` to a fully-qualified path of a cache
 backend class (i.e. ``mypackage.backends.whatever.WhateverCache``).
 Writing a whole new cache backend from scratch is left as an exercise
 to the reader; see the other backends for examples.
@@ -325,8 +325,6 @@ want.  See :doc:`/ref/contrib/csrf`.
 CSRF_COOKIE_PATH
 ----------------
 
-.. versionadded:: 1.4
-
 Default: ``'/'``
 
 The path set on the CSRF cookie. This should either match the URL path of your
@@ -340,8 +338,6 @@ its own CSRF cookie.
 
 CSRF_COOKIE_SECURE
 ------------------
-
-.. versionadded:: 1.4
 
 Default: ``False``
 
@@ -431,10 +427,12 @@ MySQL will connect via a Unix socket to the specified socket. For example::
 If you're using MySQL and this value *doesn't* start with a forward slash, then
 this value is assumed to be the host.
 
-If you're using PostgreSQL, an empty string means to use a Unix domain socket
-for the connection, rather than a network connection to localhost. If you
-explicitly need to use a TCP/IP connection on the local machine with
-PostgreSQL, specify ``localhost`` here.
+If you're using PostgreSQL, by default (empty :setting:`HOST`), the connection
+to the database is done through UNIX domain sockets ('local' lines in
+``pg_hba.conf``). If you want to connect through TCP sockets, set
+:setting:`HOST` to 'localhost' or '127.0.0.1' ('host' lines in ``pg_hba.conf``).
+On Windows, you should always define :setting:`HOST`, as UNIX domain sockets
+are not available.
 
 .. setting:: NAME
 
@@ -560,7 +558,7 @@ If the default value (``None``) is used with the SQLite database engine, the
 tests will use a memory resident database. For all other database engines the
 test database will use the name ``'test_' + DATABASE_NAME``.
 
-See :doc:`/topics/testing`.
+See :ref:`the-test-database`.
 
 .. setting:: TEST_CREATE
 
@@ -754,11 +752,6 @@ name includes any of the following:
     * SIGNATURE
     * TOKEN
 
-.. versionchanged:: 1.4
-
-    We changed ``'PASSWORD'`` ``'PASS'``. ``'API'``, ``'TOKEN'`` and ``'KEY'``
-    were added.
-
 Note that these are *partial* matches. ``'PASS'`` will also match PASSWORD,
 just as ``'TOKEN'`` will also match TOKENIZED and so on.
 
@@ -828,7 +821,7 @@ DEFAULT_EXCEPTION_REPORTER_FILTER
 Default: :class:`django.views.debug.SafeExceptionReporterFilter`
 
 Default exception reporter filter class to be used if none has been assigned to
-the :class:`HttpRequest` instance yet.
+the :class:`~django.http.HttpRequest` instance yet.
 See :ref:`Filtering error reports<filtering-error-reports>`.
 
 .. setting:: DEFAULT_FILE_STORAGE
@@ -1068,6 +1061,8 @@ Note that these paths should use Unix-style forward slashes, even on Windows.
 
 See :ref:`initial-data-via-fixtures` and :ref:`topics-testing-fixtures`.
 
+.. setting:: FORCE_SCRIPT_NAME
+
 FORCE_SCRIPT_NAME
 ------------------
 
@@ -1113,15 +1108,15 @@ Available formats are :setting:`DATE_FORMAT`, :setting:`TIME_FORMAT`,
 IGNORABLE_404_URLS
 ------------------
 
-.. versionadded:: 1.4
-
 Default: ``()``
 
 List of compiled regular expression objects describing URLs that should be
 ignored when reporting HTTP 404 errors via email (see
-:doc:`/howto/error-reporting`). Use this if your site does not provide a
-commonly requested file such as ``favicon.ico`` or ``robots.txt``, or if it
-gets hammered by script kiddies.
+:doc:`/howto/error-reporting`). Regular expressions are matched against
+:meth:`request's full paths <django.http.HttpRequest.get_full_path>` (including
+query string, if any). Use this if your site does not provide a commonly
+requested file such as ``favicon.ico`` or ``robots.txt``, or if it gets
+hammered by script kiddies.
 
 This is only used if :setting:`SEND_BROKEN_LINK_EMAILS` is set to ``True`` and
 ``CommonMiddleware`` is installed (see :doc:`/topics/http/middleware`).
@@ -1242,9 +1237,8 @@ Example::
         '/var/local/translations/locale'
     )
 
-Note that in the paths you add to the value of this setting, if you have the
-typical ``/path/to/locale/xx/LC_MESSAGES`` hierarchy, you should use the path to
-the ``locale`` directory (i.e. ``'/path/to/locale'``).
+Django will look within each of these paths for the ``<locale_code>/LC_MESSAGES``
+directories containing the actual translation files.
 
 .. setting:: LOGGING
 
@@ -1373,7 +1367,7 @@ more details.
 MESSAGE_STORAGE
 ---------------
 
-Default: ``'django.contrib.messages.storage.user_messages.LegacyFallbackStorage'``
+Default: ``'django.contrib.messages.storage.fallback.FallbackStorage'``
 
 Controls where Django stores message data.  See the
 :doc:`messages documentation </ref/contrib/messages>` for more details.
@@ -1447,6 +1441,23 @@ format has higher precedence and will be applied instead.
 See also :setting:`DECIMAL_SEPARATOR`, :setting:`THOUSAND_SEPARATOR` and
 :setting:`USE_THOUSAND_SEPARATOR`.
 
+.. setting:: PASSWORD_HASHERS
+
+PASSWORD_HASHERS
+----------------
+
+See :ref:`auth_password_storage`.
+
+Default::
+
+    ('django.contrib.auth.hashers.PBKDF2PasswordHasher',
+     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+     'django.contrib.auth.hashers.BCryptPasswordHasher',
+     'django.contrib.auth.hashers.SHA1PasswordHasher',
+     'django.contrib.auth.hashers.MD5PasswordHasher',
+     'django.contrib.auth.hashers.UnsaltedMD5PasswordHasher',
+     'django.contrib.auth.hashers.CryptPasswordHasher',)
+
 .. setting:: PASSWORD_RESET_TIMEOUT_DAYS
 
 PASSWORD_RESET_TIMEOUT_DAYS
@@ -1476,21 +1487,7 @@ PROFANITIES_LIST
 Default: ``()`` (Empty tuple)
 
 A tuple of profanities, as strings, that will be forbidden in comments when
-:setting:`COMMENTS_ALLOW_PROFANITIES` is ``False``.
-
-.. setting:: RESTRUCTUREDTEXT_FILTER_SETTINGS
-
-RESTRUCTUREDTEXT_FILTER_SETTINGS
---------------------------------
-
-Default: ``{}``
-
-A dictionary containing settings for the ``restructuredtext`` markup filter from
-the :doc:`django.contrib.markup application </ref/contrib/markup>`. They override
-the default writer settings. See the Docutils restructuredtext `writer settings
-docs`_ for details.
-
-.. _writer settings docs: http://docutils.sourceforge.net/docs/user/config.html#html4css1-writer
+``COMMENTS_ALLOW_PROFANITIES`` is ``False``.
 
 .. setting:: ROOT_URLCONF
 
@@ -1534,8 +1531,6 @@ randomly-generated ``SECRET_KEY`` to each new project.
 SECURE_PROXY_SSL_HEADER
 -----------------------
 
-.. versionadded:: 1.4
-
 Default: ``None``
 
 A tuple representing a HTTP header/value combination that signifies a request
@@ -1560,9 +1555,9 @@ for.
 You'll need to set a tuple with two elements -- the name of the header to look
 for and the required value. For example::
 
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTOCOL', 'https')
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-Here, we're telling Django that we trust the ``X-Forwarded-Protocol`` header
+Here, we're telling Django that we trust the ``X-Forwarded-Proto`` header
 that comes from our proxy, and any time its value is ``'https'``, then the
 request is guaranteed to be secure (i.e., it originally came in via HTTPS).
 Obviously, you should *only* set this setting if you control your proxy or
@@ -1575,16 +1570,18 @@ available in ``request.META``.)
 
 .. warning::
 
-    **You will probably open security holes in your site if you set this without knowing what you're doing. And if you fail to set it when you should. Seriously.**
+    **You will probably open security holes in your site if you set this
+    without knowing what you're doing. And if you fail to set it when you
+    should. Seriously.**
 
     Make sure ALL of the following are true before setting this (assuming the
     values from the example above):
 
     * Your Django app is behind a proxy.
-    * Your proxy strips the 'X-Forwarded-Protocol' header from all incoming
+    * Your proxy strips the ``X-Forwarded-Proto`` header from all incoming
       requests. In other words, if end users include that header in their
       requests, the proxy will discard it.
-    * Your proxy sets the 'X-Forwarded-Protocol' header and sends it to Django,
+    * Your proxy sets the ``X-Forwarded-Proto`` header and sends it to Django,
       but only for requests that originally come in via HTTPS.
 
     If any of those are not true, you should keep this setting set to ``None``
@@ -1664,9 +1661,6 @@ useful way to mitigate the risk of client side script accessing the
 protected cookie data.
 
 .. _HTTPOnly: https://www.owasp.org/index.php/HTTPOnly
-
-.. versionchanged:: 1.4
-    The default value of the setting was changed from ``False`` to ``True``.
 
 .. setting:: SESSION_COOKIE_NAME
 
@@ -1797,8 +1791,6 @@ See also :setting:`DATE_FORMAT` and :setting:`SHORT_DATE_FORMAT`.
 SIGNING_BACKEND
 ---------------
 
-.. versionadded:: 1.4
-
 Default: 'django.core.signing.TimestampSigner'
 
 The backend used for signing cookies and other data.
@@ -1889,10 +1881,6 @@ A tuple of callables that are used to populate the context in ``RequestContext``
 These callables take a request object as their argument and return a dictionary
 of items to be merged into the context.
 
-.. versionadded:: 1.4
-    The ``django.core.context_processors.tz`` context processor
-    was added in this release.
-
 .. setting:: TEMPLATE_DEBUG
 
 TEMPLATE_DEBUG
@@ -1958,9 +1946,7 @@ TEST_RUNNER
 Default: ``'django.test.simple.DjangoTestSuiteRunner'``
 
 The name of the class to use for starting the test suite. See
-:doc:`/topics/testing`.
-
-.. _Testing Django Applications: ../testing/
+:ref:`other-testing-frameworks`.
 
 .. setting:: THOUSAND_SEPARATOR
 
@@ -2019,9 +2005,6 @@ TIME_ZONE
 
 Default: ``'America/Chicago'``
 
-.. versionchanged:: 1.4
-   The meaning of this setting now depends on the value of :setting:`USE_TZ`.
-
 A string representing the time zone for this installation, or
 ``None``. `See available choices`_. (Note that list of available
 choices lists more than one on the same line; you'll want to use just
@@ -2063,6 +2046,16 @@ to ensure your processes are running in the correct environment.
 .. _See available choices: http://www.postgresql.org/docs/8.1/static/datetime-keywords.html#DATETIME-TIMEZONE-SET-TABLE
 
 .. _pytz: http://pytz.sourceforge.net/
+
+.. setting:: TRANSACTIONS_MANAGED
+
+TRANSACTIONS_MANAGED
+--------------------
+
+Default: ``False``
+
+Set this to ``True`` if you want to :ref:`disable Django's transaction
+management <deactivate-transaction-management>` and implement your own.
 
 .. setting:: USE_ETAGS
 
@@ -2128,8 +2121,6 @@ See also :setting:`DECIMAL_SEPARATOR`, :setting:`NUMBER_GROUPING` and
 USE_TZ
 ------
 
-.. versionadded:: 1.4
-
 Default: ``False``
 
 A boolean that specifies if datetimes will be timezone-aware by default or not.
@@ -2160,8 +2151,6 @@ which sets this header is in use.
 WSGI_APPLICATION
 ----------------
 
-.. versionadded:: 1.4
-
 Default: ``None``
 
 The full Python path of the WSGI application object that Django's built-in
@@ -2170,7 +2159,7 @@ startproject <startproject>` management command will create a simple
 ``wsgi.py`` file with an ``application`` callable in it, and point this setting
 to that ``application``.
 
-If not set, the return value of :func:`django.core.wsgi.get_wsgi_application`
+If not set, the return value of ``django.core.wsgi.get_wsgi_application()``
 will be used. In this case, the behavior of :djadmin:`runserver` will be
 identical to previous Django versions.
 
@@ -2208,16 +2197,6 @@ The default value for the X-Frame-Options header used by
 Deprecated settings
 ===================
 
-.. setting:: ADMIN_MEDIA_PREFIX
-
-ADMIN_MEDIA_PREFIX
-------------------
-
-.. deprecated:: 1.4
-   This setting has been obsoleted by the ``django.contrib.staticfiles`` app
-   integration. See the :doc:`Django 1.4 release notes</releases/1.4>` for
-   more information.
-
 .. setting:: AUTH_PROFILE_MODULE
 
 AUTH_PROFILE_MODULE
@@ -2232,23 +2211,7 @@ AUTH_PROFILE_MODULE
 Default: Not defined
 
 The site-specific user profile model used by this site. See
-:ref:`auth-profiles`.
-
-.. setting:: IGNORABLE_404_ENDS
-
-IGNORABLE_404_ENDS
-------------------
-
-.. deprecated:: 1.4
-   This setting has been superseded by :setting:`IGNORABLE_404_URLS`.
-
-.. setting:: IGNORABLE_404_STARTS
-
-IGNORABLE_404_STARTS
---------------------
-
-.. deprecated:: 1.4
-   This setting has been superseded by :setting:`IGNORABLE_404_URLS`.
+:ref:`User profiles <auth-profiles>`.
 
 .. setting:: URL_VALIDATOR_USER_AGENT
 

@@ -53,6 +53,13 @@ comment
 
 Ignores everything between ``{% comment %}`` and ``{% endcomment %}``.
 
+Sample usage::
+
+    <p>Rendered text with {{ pub_date|date:"c" }}</p>
+    {% comment %}
+        <p>Commented out text with {{ create_date|date:"c" }}</p>
+    {% endcomment %}
+
 .. templatetag:: csrf_token
 
 csrf_token
@@ -370,13 +377,9 @@ block are output::
 In the above, if ``athlete_list`` is not empty, the number of athletes will be
 displayed by the ``{{ athlete_list|length }}`` variable.
 
-As you can see, the ``if`` tag may take one or several `` {% elif %}``
+As you can see, the ``if`` tag may take one or several ``{% elif %}``
 clauses, as well as an ``{% else %}`` clause that will be displayed if all
 previous conditions fail. These clauses are optional.
-
-.. versionadded:: 1.4
-
-The ``if`` tag now supports ``{% elif %}`` clauses.
 
 Boolean operators
 ^^^^^^^^^^^^^^^^^
@@ -611,7 +614,7 @@ Output the contents of the block if the two arguments equal each other.
 
 Example::
 
-    {% ifequal user.id comment.user_id %}
+    {% ifequal user.pk comment.user_id %}
         ...
     {% endifequal %}
 
@@ -736,8 +739,6 @@ escaped, because it's not a format character::
 
 This would display as "It is the 4th of September".
 
-.. versionchanged:: 1.4
-
 .. note::
 
     The format passed can also be one of the predefined ones
@@ -857,7 +858,7 @@ an attribute "description," you could use::
     {% regroup cities by country.description as country_list %}
 
 Or, if ``country`` is a field with ``choices``, it will have a
-:meth:`^django.db.models.Model.get_FOO_display` method available as an
+:meth:`~django.db.models.Model.get_FOO_display` method available as an
 attribute, allowing  you to group on the display string rather than the
 ``choices`` key::
 
@@ -947,6 +948,10 @@ Argument            Outputs
 ``closecomment``    ``#}``
 ==================  =======
 
+Sample usage::
+
+    {% templatetag openblock %} url 'entry_list' {% templatetag closeblock %}
+
 .. templatetag:: url
 
 url
@@ -1024,6 +1029,16 @@ This will follow the normal :ref:`namespaced URL resolution strategy
 <topics-http-reversing-url-namespaces>`, including using any hints provided
 by the context as to the current application.
 
+.. warning::
+
+    Don't forget to put quotes around the function path or pattern name!
+
+    .. versionchanged:: 1.5
+        The first parameter used not to be quoted, which was inconsistent with
+        other template tags. Since Django 1.5, it is evaluated according to
+        the usual rules: it can be a quoted string or a variable that will be
+        looked up in the context.
+
 .. templatetag:: verbatim
 
 verbatim
@@ -1058,11 +1073,11 @@ value to a maximum value, and then applies that ratio to a constant.
 For example::
 
     <img src="bar.png" alt="Bar"
-         height="10" width="{% widthratio this_value max_value 100 %}" />
+         height="10" width="{% widthratio this_value max_value max_width %}" />
 
-Above, if ``this_value`` is 175 and ``max_value`` is 200, the image in the
-above example will be 88 pixels wide (because 175/200 = .875; .875 * 100 = 87.5
-which is rounded up to 88).
+If ``this_value`` is 175, ``max_value`` is 200, and ``max_width`` is 100, the
+image in the above example will be 88 pixels wide
+(because 175/200 = .875; .875 * 100 = 87.5 which is rounded up to 88).
 
 .. templatetag:: with
 
@@ -1268,10 +1283,6 @@ Z                 Time zone offset in seconds. The          ``-43200`` to ``4320
                   UTC is always positive.
 ================  ========================================  =====================
 
-.. versionadded:: 1.4
-
-The ``e`` and ``o`` format specification characters were added in Django 1.4.
-
 For example::
 
     {{ value|date:"D d M Y" }}
@@ -1409,6 +1420,12 @@ applied to the result will only result in one round of escaping being done. So
 it is safe to use this function even in auto-escaping environments. If you want
 multiple escaping passes to be applied, use the :tfilter:`force_escape` filter.
 
+For example, you can apply ``escape`` to fields when :ttag:`autoescape` is off::
+
+    {% autoescape off %}
+        {{ title|escape }}
+    {% endautoescape %}
+
 .. templatefilter:: escapejs
 
 escapejs
@@ -1438,6 +1455,14 @@ For example::
     {{ value|filesizeformat }}
 
 If ``value`` is 123456789, the output would be ``117.7 MB``.
+
+.. admonition:: File sizes and SI units
+
+    Strictly speaking, ``filesizeformat`` does not conform to the International
+    System of Units which recommends using KiB, MiB, GiB, etc. when byte sizes
+    are calculated in powers of 1024 (which is the case here). Instead, Django
+    uses traditional unit names (KB, MB, GB, etc.) corresponding to names that
+    are more commonly used.
 
 .. templatefilter:: first
 
@@ -1505,6 +1530,17 @@ that many decimal places. For example:
 ``34.26000``  ``{{ value|floatformat:3 }}``  ``34.260``
 ============  =============================  ==========
 
+Particularly useful is passing 0 (zero) as the argument which will round the
+float to the nearest integer.
+
+============  ================================  ==========
+``value``     Template                          Output
+============  ================================  ==========
+``34.23234``  ``{{ value|floatformat:"0" }}``   ``34``
+``34.00000``  ``{{ value|floatformat:"0" }}``   ``34``
+``39.56000``  ``{{ value|floatformat:"0" }}``   ``40``
+============  ================================  ==========
+
 If the argument passed to ``floatformat`` is negative, it will round a number
 to that many decimal places -- but only if there's a decimal part to be
 displayed. For example:
@@ -1530,6 +1566,13 @@ details). This filter is applied *immediately* and returns a new, escaped
 string. This is useful in the rare cases where you need multiple escaping or
 want to apply other filters to the escaped results. Normally, you want to use
 the :tfilter:`escape` filter.
+
+For example, if you want to catch the ``<p>`` HTML elements created by
+the :tfilter:`linebreaks` filter::
+
+    {% autoescape off %}
+        {{ body|linebreaks|force_escape }}
+    {% endautoescape %}
 
 .. templatefilter:: get_digit
 
@@ -1900,9 +1943,9 @@ for documentation of Python string formatting
 
 For example::
 
-    {{ value|stringformat:"s" }}
+    {{ value|stringformat:"E" }}
 
-If ``value`` is ``"Joel is a slug"``, the output will be ``"Joel is a slug"``.
+If ``value`` is ``10``, the output will be ``1.000000E+01``.
 
 .. templatefilter:: striptags
 
@@ -1968,7 +2011,9 @@ Takes an optional argument that is a variable containing the date to use as
 the comparison point (without the argument, the comparison point is *now*).
 For example, if ``blog_date`` is a date instance representing midnight on 1
 June 2006, and ``comment_date`` is a date instance for 08:00 on 1 June 2006,
-then ``{{ blog_date|timesince:comment_date }}`` would return "8 hours".
+then the following would return "8 hours"::
+
+    {{ blog_date|timesince:comment_date }}
 
 Comparing offset-naive and offset-aware datetimes will return an empty string.
 
@@ -1987,7 +2032,9 @@ given date or datetime. For example, if today is 1 June 2006 and
 
 Takes an optional argument that is a variable containing the date to use as
 the comparison point (instead of *now*). If ``from_date`` contains 22 June
-2006, then ``{{ conference_date|timeuntil:from_date }}`` will return "1 week".
+2006, then the following will return "1 week"::
+
+    {{ conference_date|timeuntil:from_date }}
 
 Comparing offset-naive and offset-aware datetimes will return an empty string.
 
@@ -2011,8 +2058,6 @@ If ``value`` is ``"my first post"``, the output will be ``"My First Post"``.
 
 truncatechars
 ^^^^^^^^^^^^^
-
-.. versionadded:: 1.4
 
 Truncates a string if it is longer than the specified number of characters.
 Truncated strings will end with a translatable ellipsis sequence ("...").
@@ -2143,11 +2188,6 @@ It also supports domain-only links ending in one of the original top level
 domains (``.com``, ``.edu``, ``.gov``, ``.int``, ``.mil``, ``.net``, and
 ``.org``). For example, ``djangoproject.com`` gets converted.
 
-.. versionchanged:: 1.4
-
-Until Django 1.4, only the ``.com``, ``.net`` and ``.org`` suffixes were
-supported for domain-only links.
-
 Links can have trailing punctuation (periods, commas, close-parens) and leading
 punctuation (opening parens), and ``urlize`` will still do the right thing.
 
@@ -2277,8 +2317,6 @@ See :ref:`topic-l10n-templates`.
 tz
 ^^
 
-.. versionadded:: 1.4
-
 This library provides control over time zone conversions in templates.
 Like ``l10n``, you only need to load the library using ``{% load tz %}``,
 but you'll usually also set :setting:`USE_TZ` to ``True`` so that conversion
@@ -2299,16 +2337,6 @@ django.contrib.humanize
 A set of Django template filters useful for adding a "human touch" to data. See
 :doc:`/ref/contrib/humanize`.
 
-django.contrib.markup
-^^^^^^^^^^^^^^^^^^^^^
-
-A collection of template filters that implement these common markup languages:
-
-* Textile
-* Markdown
-* reST (reStructuredText)
-
-See the :doc:`markup documentation </ref/contrib/markup>`.
 
 django.contrib.webdesign
 ^^^^^^^^^^^^^^^^^^^^^^^^

@@ -16,8 +16,8 @@ from __future__ import unicode_literals
 import sys
 from os.path import abspath, dirname, join
 
-# Make sure we use this copy of Django
-sys.path.insert(1, abspath(dirname(dirname(__file__))))
+# Make sure we get the version of this copy of Django
+sys.path.insert(1, dirname(dirname(abspath(__file__))))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -110,6 +110,7 @@ intersphinx_mapping = {
     'python': ('http://docs.python.org/2.7', None),
     'sphinx': ('http://sphinx.pocoo.org/', None),
     'six': ('http://packages.python.org/six/', None),
+    'simplejson': ('http://simplejson.readthedocs.org/en/latest/', None),
 }
 
 # Python's docs don't change every week.
@@ -246,6 +247,16 @@ latex_documents = [
 man_pages = [
     ('contents', 'django', 'Django Documentation', ['Django Software Foundation'], 1)
 ]
+
+
+# -- Options for Texinfo output ------------------------------------------------
+
+# List of tuples (startdocname, targetname, title, author, dir_entry,
+# description, category, toctree_only)
+texinfo_documents=[(
+    master_doc, "django", "", "", "Django",
+    "Documentation of the Django framework", "Web development", False
+)]
 
 
 # -- Options for Epub output ---------------------------------------------------

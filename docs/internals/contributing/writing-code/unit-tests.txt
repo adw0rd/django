@@ -9,13 +9,14 @@ The tests cover:
 
 * Models and the database API (``tests/modeltests``),
 * Everything else in core Django code (``tests/regressiontests``),
-* :ref:`contrib-apps` (``django/contrib/<app>/tests``).
+* :ref:`contrib-apps` (``django/contrib/<app>/tests`` or
+  ``tests/regressiontests/<app>_...``).
 
 We appreciate any and all contributions to the test suite!
 
 The Django tests all use the testing infrastructure that ships with Django for
-testing applications. See :doc:`Testing Django applications </topics/testing>`
-for an explanation of how to write new tests.
+testing applications. See :doc:`Testing Django applications
+</topics/testing/overview>` for an explanation of how to write new tests.
 
 .. _running-unit-tests:
 
@@ -37,6 +38,8 @@ with this sample ``settings`` module, ``cd`` into the Django
 
 If you get an ``ImportError: No module named django.contrib`` error,
 you need to add your install of Django to your ``PYTHONPATH``.
+
+.. _running-unit-tests-settings:
 
 Using another ``settings`` module
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,6 +136,8 @@ Then, run the tests normally, for example:
 
     ./runtests.py --settings=test_sqlite admin_inlines
 
+.. _running-unit-tests-dependencies:
+
 Running all the tests
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -140,9 +145,6 @@ If you want to run the full suite of tests, you'll need to install a number of
 dependencies:
 
 *  PyYAML_
-*  Markdown_
-*  Textile_
-*  Docutils_
 *  setuptools_
 *  memcached_, plus a :ref:`supported Python binding <memcached>`
 *  gettext_ (:ref:`gettext_on_windows`)
@@ -155,9 +157,6 @@ Each of these dependencies is optional. If you're missing any of them, the
 associated tests will be skipped.
 
 .. _PyYAML: http://pyyaml.org/wiki/PyYAML
-.. _Markdown: http://pypi.python.org/pypi/Markdown/1.7
-.. _Textile: http://pypi.python.org/pypi/textile
-.. _docutils: http://pypi.python.org/pypi/docutils/0.4
 .. _setuptools: http://pypi.python.org/pypi/setuptools/
 .. _memcached: http://memcached.org/
 .. _gettext: http://www.gnu.org/software/gettext/manual/gettext.html
@@ -195,7 +194,7 @@ multiple modules by using a ``tests`` directory in the normal Python way.
 For the tests to be found, a ``models.py`` file must exist, even if it's empty.
 If you have URLs that need to be mapped, put them in ``tests/urls.py``.
 
-To run tests for just one contrib app (e.g. ``markup``), use the same
+To run tests for just one contrib app (e.g. ``auth``), use the same
 method as above::
 
-    ./runtests.py --settings=settings markup
+    ./runtests.py --settings=settings auth

@@ -9,11 +9,10 @@ from django.db.models.fields.related import ManyToManyRel
 from django.db.models.fields import AutoField, FieldDoesNotExist
 from django.db.models.fields.proxy import OrderWrt
 from django.db.models.loading import get_models, app_cache_ready
-from django.utils.translation import activate, deactivate_all, get_language, string_concat
-from django.utils.encoding import force_text, smart_text
-from django.utils.datastructures import SortedDict
 from django.utils import six
-from django.utils.encoding import python_2_unicode_compatible
+from django.utils.datastructures import SortedDict
+from django.utils.encoding import force_text, smart_text, python_2_unicode_compatible
+from django.utils.translation import activate, deactivate_all, get_language, string_concat
 
 # Calculate the verbose_name by converting from InitialCaps to "lowercase with spaces".
 get_verbose_name = lambda class_name: re.sub('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|$)))', ' \\1', class_name).lower().strip()
@@ -21,7 +20,8 @@ get_verbose_name = lambda class_name: re.sub('(((?<=[a-z])[A-Z])|([A-Z](?![A-Z]|
 DEFAULT_NAMES = ('verbose_name', 'verbose_name_plural', 'db_table', 'ordering',
                  'unique_together', 'permissions', 'get_latest_by',
                  'order_with_respect_to', 'app_label', 'db_tablespace',
-                 'abstract', 'managed', 'proxy', 'swappable', 'auto_created')
+                 'abstract', 'managed', 'proxy', 'swappable', 'auto_created',
+                 'index_together')
 
 
 @python_2_unicode_compatible
@@ -34,6 +34,7 @@ class Options(object):
         self.db_table = ''
         self.ordering = []
         self.unique_together = []
+        self.index_together = []
         self.permissions = []
         self.object_name, self.app_label = None, app_label
         self.get_latest_by = None
@@ -74,6 +75,7 @@ class Options(object):
         from django.db.backends.util import truncate_name
 
         cls._meta = self
+        self.model = cls
         self.installed = re.sub('\.models$', '', cls.__module__) in settings.INSTALLED_APPS
         # First, construct the default values for these options.
         self.object_name = cls.__name__
@@ -173,6 +175,12 @@ class Options(object):
             self.pk = field
             field.serialize = False
 
+    def pk_index(self):
+        """
+        Returns the index of the primary key field in the self.fields list.
+        """
+        return self.fields.index(self.pk)
+
     def setup_proxy(self, target):
         """
         Does the internal setup so that the current model is a proxy for
@@ -205,12 +213,25 @@ class Options(object):
         """
         Has this model been swapped out for another? If so, return the model
         name of the replacement; otherwise, return None.
+
+        For historical reasons, model name lookups using get_model() are
+        case insensitive, so we make sure we are case insensitive here.
         """
         if self.swappable:
-            model_label = '%s.%s' % (self.app_label, self.object_name)
+            model_label = '%s.%s' % (self.app_label, self.object_name.lower())
             swapped_for = getattr(settings, self.swappable, None)
-            if swapped_for not in (None, model_label):
-                return swapped_for
+            if swapped_for:
+                try:
+                    swapped_label, swapped_object = swapped_for.split('.')
+                except ValueError:
+                    # setting not in the format app_label.model_name
+                    # raising ImproperlyConfigured here causes problems with
+                    # test cleanup code - instead it is raised in get_user_model
+                    # or as part of validation.
+                    return swapped_for
+
+                if '%s.%s' % (swapped_label, swapped_object.lower()) not in (None, model_label):
+                    return swapped_for
         return None
     swapped = property(_swapped)
 
@@ -459,7 +480,7 @@ class Options(object):
         a granparent or even more distant relation.
         """
         if not self.parents:
-            return
+            return None
         if model in self.parents:
             return [model]
         for parent in self.parents:
@@ -467,8 +488,7 @@ class Options(object):
             if res:
                 res.insert(0, parent)
                 return res
-        raise TypeError('%r is not an ancestor of this model'
-                % model._meta.module_name)
+        return None
 
     def get_parent_list(self):
         """
@@ -500,22 +520,3 @@ class Options(object):
                 # of the chain to the ancestor is that parent
                 # links
                 return self.parents[parent] or parent_link
-
-    def get_ordered_objects(self):
-        "Returns a list of Options objects that are ordered with respect to this object."
-        if not hasattr(self, '_ordered_objects'):
-            objects = []
-            # TODO
-            #for klass in get_models(get_app(self.app_label)):
-            #    opts = klass._meta
-            #    if opts.order_with_respect_to and opts.order_with_respect_to.rel \
-            #        and self == opts.order_with_respect_to.rel.to._meta:
-            #        objects.append(opts)
-            self._ordered_objects = objects
-        return self._ordered_objects
-
-    def pk_index(self):
-        """
-        Returns the index of the primary key field in the self.fields list.
-        """
-        return self.fields.index(self.pk)
